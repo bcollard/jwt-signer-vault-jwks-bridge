@@ -2,7 +2,8 @@
 # End-to-end test: Vault, jwks-bridge and Kong Gateway Enterprise in hybrid mode
 # (one control plane, two data planes) on a Kubernetes cluster.
 #
-# Usage: test/e2e/run.sh [all|up|test|down]   (default: all)
+# Usage: test/e2e/run.sh [all|up|configure|test|down]   (default: all)
+#   configure  apply the Kong configuration only (used by demo.sh)
 #
 # Environment:
 #   KONG_LICENSE_DATA   Kong Enterprise license JSON (required; jwt-signer is an Enterprise plugin)
@@ -223,6 +224,11 @@ down() {
 
 case "${1:-all}" in
   up) up ;;
+  configure)
+    trap stop_port_forwards EXIT
+    port_forward kong svc/kong-cp-kong-admin 18001 8001
+    configure_kong
+    ;;
   test) run_tests ;;
   down) down ;;
   all)
@@ -232,5 +238,5 @@ case "${1:-all}" in
     if [[ "${E2E_KEEP:-0}" != "1" ]]; then down; fi
     exit $status
     ;;
-  *) echo "usage: $0 [all|up|test|down]" >&2; exit 2 ;;
+  *) echo "usage: $0 [all|up|configure|test|down]" >&2; exit 2 ;;
 esac

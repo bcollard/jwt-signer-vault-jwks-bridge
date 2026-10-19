@@ -137,6 +137,12 @@
 <span class="t-cmd">./test/e2e/run.sh</span> down</code></pre>
       <p>To use an existing cluster set <code>E2E_KUBE_CONTEXT</code>, and <code>E2E_LOAD_IMAGE</code> to the command that loads <code>jwks-bridge:e2e</code> into it.</p>
 
+      <h2 id="demo">Guided demo</h2>
+      <p>On an environment created with <code>run.sh up</code>, <code>test/e2e/demo.sh</code> walks through the whole flow and pauses before each step: the keyset in Vault, the protected private keyset, the public JWKS, both data planes signing with the same key, then a stage, promote and remove rotation while a client calls both data planes. It ends with the request count per signing key, the Prometheus metrics and a W3C trace id found in the bridge logs.</p>
+<pre><code class="language-bash"><span class="t-cmd">./test/e2e/run.sh</span> up
+<span class="t-cmd">./test/e2e/demo.sh</span>            <span class="t-c"># Enter advances each step</span>
+<span class="t-v">DEMO_AUTO</span>=1 ./test/e2e/demo.sh  <span class="t-c"># no pauses</span></code></pre>
+
       <h2 id="ci">CI</h2>
       <p>The GitHub Actions workflow runs the same script on kind when the <code>KONG_LICENSE_DATA</code> repository secret is set.</p>
       <!-- pager --><div class="doc-pager">

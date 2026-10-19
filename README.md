@@ -85,7 +85,7 @@ make e2e         # kind + Vault + jwks-bridge + Kong hybrid (1 CP, 2 DPs); needs
 python3 scripts/site.py   # regenerate shared parts of the docs site and validate links
 ```
 
-The end-to-end test runs a full key rotation under traffic through two data planes and fails on any verification error. To run it on an existing cluster, set `E2E_KUBE_CONTEXT` and `E2E_LOAD_IMAGE`; see [`test/e2e/run.sh`](test/e2e/run.sh).
+The end-to-end test runs a full key rotation under traffic through two data planes and fails on any verification error. To run it on an existing cluster, set `E2E_KUBE_CONTEXT` and `E2E_LOAD_IMAGE`; see [`test/e2e/run.sh`](test/e2e/run.sh). After `run.sh up`, [`test/e2e/demo.sh`](test/e2e/demo.sh) walks through the same flow step by step for a live demo.
 
 Design notes: [`DESIGN.md`](DESIGN.md).
 

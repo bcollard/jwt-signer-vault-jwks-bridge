@@ -421,6 +421,13 @@ window.JWKSB_DOCS_INDEX = [
  },
  {
   "page": "testing.html",
+  "anchor": "demo",
+  "title": "End-to-end tests",
+  "section": "",
+  "text": "Guided demo"
+ },
+ {
+  "page": "testing.html",
   "anchor": "ci",
   "title": "End-to-end tests",
   "section": "",
