@@ -1,0 +1,142 @@
+# -- Number of replicas. Run two or more; each replica caches keys independently.
+replicaCount: 2
+
+image:
+  repository: ghcr.io/bcollard/jwks-bridge
+  # -- Defaults to the chart appVersion.
+  tag: ""
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# -- Secret source: "vault" or "file".
+source: vault
+
+# -- Keyset name to source path. With Vault the path is "<kv-v2 mount>/<path>".
+keysets:
+  default: secret/jwks-bridge/default
+
+config:
+  refreshInterval: 30s
+  maxStale: 1h
+  jwksMaxAge: 300s
+  minStageDuration: 10m
+  logLevel: info
+  logFormat: json
+
+vault:
+  # -- Vault address. Required with source=vault.
+  address: ""
+  # -- Vault Enterprise namespace.
+  namespace: ""
+  # -- Auth method: kubernetes, approle or token.
+  auth: kubernetes
+  # -- Kubernetes auth role.
+  role: jwks-bridge
+  # -- Auth mount path; defaults to the method name.
+  authMount: ""
+  # -- Secret holding the CA bundle that signed the Vault server certificate (key ca.crt).
+  caSecret: ""
+  approle:
+    roleId: ""
+    # -- Secret holding the AppRole secret id (key secret-id).
+    secretIdSecret: ""
+  # -- Secret holding a static token (key token). Development only.
+  tokenSecret: ""
+
+file:
+  # -- ConfigMap or Secret mounted at /keysets with source=file. Keyset paths are relative to it.
+  configMap: ""
+  secret: ""
+
+private:
+  # -- Serve the private /keyset listener.
+  enabled: true
+  port: 8443
+  tls:
+    # -- Secret of type kubernetes.io/tls with the private listener certificate. Required.
+    secretName: ""
+  mtls:
+    # -- Secret holding the CA bundle (key ca.crt) for client certificate verification. Enables mTLS.
+    caSecret: ""
+    # -- Client certificate SAN or CN allowlist. Empty accepts any certificate signed by the CA.
+    allowedSANs: []
+  basicAuth:
+    # -- Secret with keys "username" and "password". Enables Basic auth.
+    secretName: ""
+
+service:
+  type: ClusterIP
+  publicPort: 8080
+  annotations: {}
+
+admin:
+  port: 9090
+
+# -- Extra environment variables, for example OTEL_EXPORTER_OTLP_ENDPOINT to export traces.
+extraEnv: []
+#  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+#    value: http://otel-collector.observability:4318
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 32Mi
+  limits:
+    memory: 128Mi
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+networkPolicy:
+  enabled: false
+  # -- Pods allowed to call the private listener (Kong data planes).
+  privateFrom:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/component: app
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kong
+  # -- Pods allowed to call the public listener (Kong data planes).
+  publicFrom:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kong
+  # -- Pods allowed to scrape metrics.
+  adminFrom: []
+
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  labels: {}
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []

@@ -1,0 +1,51 @@
+image:
+  repository: kong/kong-gateway
+  tag: "3.14.0.16"
+
+replicaCount: 2
+
+env:
+  role: data_plane
+  database: "off"
+  cluster_control_plane: kong-cp-kong-cluster.kong.svc.cluster.local:8005
+  cluster_telemetry_endpoint: kong-cp-kong-clustertelemetry.kong.svc.cluster.local:8006
+  cluster_cert: /etc/secrets/kong-cluster-cert/tls.crt
+  cluster_cert_key: /etc/secrets/kong-cluster-cert/tls.key
+  # Trust the CA that signed the jwks-bridge private listener certificate.
+  lua_ssl_trusted_certificate: system,/etc/secrets/kong-cluster-cert/tls.crt,/etc/secrets/jwks-bridge-ca/ca.crt
+  log_level: info
+
+enterprise:
+  enabled: true
+  license_secret: kong-enterprise-license
+  vitals:
+    enabled: false
+  portal:
+    enabled: false
+  rbac:
+    enabled: false
+  smtp:
+    enabled: false
+
+admin:
+  enabled: false
+
+proxy:
+  enabled: true
+  type: ClusterIP
+
+manager:
+  enabled: false
+
+ingressController:
+  enabled: false
+
+secretVolumes:
+  - kong-cluster-cert
+  - jwks-bridge-ca
+
+portal:
+  enabled: false
+
+portalapi:
+  enabled: false

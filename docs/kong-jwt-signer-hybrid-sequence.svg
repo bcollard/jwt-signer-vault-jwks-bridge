@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1420 1922" width="1420" height="1922" font-family="Helvetica, Arial, sans-serif" font-size="12.5">
+<title>Kong jwt-signer with Vault in a hybrid deployment</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#222"/></marker></defs>
+<rect width="1420" height="1922" fill="#fff"/>
+<text x="710.0" y="26" text-anchor="middle" font-size="17" font-weight="bold" fill="#111">Kong jwt-signer + Vault in a hybrid deployment: keyset loading, public JWKS and key rotation</text>
+<rect x="710" y="40" width="345" height="60" rx="8" fill="none" stroke="#2e8b57" stroke-dasharray="4 3"/>
+<text x="882.5" y="112" text-anchor="middle" fill="#2e8b57" font-size="11">Data planes (hybrid mode, no database)</text>
+<line x1="95" y1="122" x2="95" y2="1908" stroke="#aaa" stroke-dasharray="5 4"/>
+<rect x="27" y="48" width="136" height="44" rx="6" fill="#eeeeee" stroke="#555"/>
+<text x="95" y="74" text-anchor="middle" font-weight="bold" fill="#111">Operator / CI</text>
+<line x1="270" y1="122" x2="270" y2="1908" stroke="#aaa" stroke-dasharray="5 4"/>
+<rect x="202" y="48" width="136" height="44" rx="6" fill="#efe6f7" stroke="#555"/>
+<text x="270" y="66" text-anchor="middle" font-weight="bold" fill="#111">HashiCorp</text>
+<text x="270" y="81" text-anchor="middle" font-weight="bold" fill="#111">Vault</text>
+<line x1="445" y1="122" x2="445" y2="1908" stroke="#aaa" stroke-dasharray="5 4"/>
+<rect x="377" y="48" width="136" height="44" rx="6" fill="#fff1d6" stroke="#555"/>
+<text x="445" y="66" text-anchor="middle" font-weight="bold" fill="#111">JWKS bridge</text>
+<text x="445" y="81" text-anchor="middle" font-weight="bold" fill="#111">(internal)</text>
+<line x1="620" y1="122" x2="620" y2="1908" stroke="#aaa" stroke-dasharray="5 4"/>
+<rect x="552" y="48" width="136" height="44" rx="6" fill="#dbe8fb" stroke="#555"/>
+<text x="620" y="66" text-anchor="middle" font-weight="bold" fill="#111">Kong</text>
+<text x="620" y="81" text-anchor="middle" font-weight="bold" fill="#111">Control Plane</text>
+<line x1="795" y1="122" x2="795" y2="1908" stroke="#aaa" stroke-dasharray="5 4"/>
+<rect x="727" y="48" width="136" height="44" rx="6" fill="#dff3e6" stroke="#555"/>
+<text x="795" y="66" text-anchor="middle" font-weight="bold" fill="#111">Kong</text>
+<text x="795" y="81" text-anchor="middle" font-weight="bold" fill="#111">Data Plane 1</text>
+<line x1="970" y1="122" x2="970" y2="1908" stroke="#aaa" stroke-dasharray="5 4"/>
+<rect x="902" y="48" width="136" height="44" rx="6" fill="#dff3e6" stroke="#555"/>
+<text x="970" y="66" text-anchor="middle" font-weight="bold" fill="#111">Kong</text>
+<text x="970" y="81" text-anchor="middle" font-weight="bold" fill="#111">Data Plane 2</text>
+<line x1="1145" y1="122" x2="1145" y2="1908" stroke="#aaa" stroke-dasharray="5 4"/>
+<rect x="1077" y="48" width="136" height="44" rx="6" fill="#e8eef7" stroke="#555"/>
+<text x="1145" y="74" text-anchor="middle" font-weight="bold" fill="#111">Backend app</text>
+<line x1="1320" y1="122" x2="1320" y2="1908" stroke="#aaa" stroke-dasharray="5 4"/>
+<rect x="1252" y="48" width="136" height="44" rx="6" fill="#e8eef7" stroke="#555"/>
+<text x="1320" y="74" text-anchor="middle" font-weight="bold" fill="#111">Client</text>
+<rect x="20" y="142" width="1380" height="24" fill="#f0f0f0" stroke="#ccc"/>
+<text x="32" y="159" font-weight="bold" fill="#333">Setup (once)</text>
+<line x1="95" y1="220" x2="270" y2="220" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="182.5" y="199" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">1. Store key pair</text>
+<text x="182.5" y="214" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">(kid k1) as JWK</text>
+<line x1="95" y1="285" x2="620" y2="285" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="357.5" y="249" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">2. Declarative sync: jwks-bridge Service + Route,</text>
+<text x="357.5" y="264" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">jwt-signer plugin on API routes</text>
+<text x="357.5" y="279" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">(access_token_keyset = https://jwks-bridge.internal/keyset)</text>
+<line x1="620" y1="320" x2="795" y2="320" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="707.5" y="314" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">3. Config push</text>
+<line x1="620" y1="355" x2="970" y2="355" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="795.0" y="349" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">3. Config push</text>
+<rect x="20" y="371" width="1380" height="24" fill="#f0f0f0" stroke="#ccc"/>
+<text x="32" y="388" font-weight="bold" fill="#333">Each DP loads the keyset itself (direct to the bridge, not through the public Route)</text>
+<line x1="795" y1="434" x2="445" y2="434" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="620.0" y="428" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">4. GET /keyset (mTLS)</text>
+<line x1="445" y1="484" x2="270" y2="484" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="357.5" y="463" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">5. Read key pair</text>
+<text x="357.5" y="478" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">(cached by bridge)</text>
+<line x1="270" y1="519" x2="445" y2="519" stroke="#222" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="357.5" y="513" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">6. JWK k1</text>
+<line x1="445" y1="554" x2="795" y2="554" stroke="#222" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="620.0" y="548" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">7. {keys:[k1 private]}</text>
+<line x1="970" y1="589" x2="445" y2="589" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="707.5" y="583" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">4'. GET /keyset (mTLS)</text>
+<line x1="445" y1="624" x2="970" y2="624" stroke="#222" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="707.5" y="618" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">7'. {keys:[k1 private]}</text>
+<rect x="720" y="638" width="325" height="44" rx="4" fill="#fffbe0" stroke="#d9c770"/>
+<text x="882.5" y="656" text-anchor="middle" fill="#333">Keys are cached in memory on each DP (no database).</text>
+<text x="882.5" y="671" text-anchor="middle" fill="#333">The control plane never fetches or stores keys.</text>
+<rect x="20" y="702" width="1380" height="24" fill="#f0f0f0" stroke="#ccc"/>
+<text x="32" y="719" font-weight="bold" fill="#333">Request path</text>
+<line x1="1320" y1="765" x2="970" y2="765" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="1145.0" y="759" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">8. API request + token</text>
+<path d="M970,787 H1010 V805 H972" fill="none" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="1020" y="799" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">9. Verify token, re-sign with k1 (kid k1)</text>
+<line x1="970" y1="850" x2="1145" y2="850" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="1057.5" y="844" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">10. Request + JWT (kid k1)</text>
+<rect x="20" y="866" width="1380" height="24" fill="#f0f0f0" stroke="#ccc"/>
+<text x="32" y="883" font-weight="bold" fill="#333">Public JWKS through the data planes (backends only talk to Kong)</text>
+<line x1="1145" y1="929" x2="795" y2="929" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="970.0" y="923" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">11. GET /.well-known/jwks.json</text>
+<line x1="795" y1="979" x2="445" y2="979" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="620.0" y="958" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">12. Route + Service jwks-bridge:</text>
+<text x="620.0" y="973" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">GET /jwks.json</text>
+<line x1="445" y1="1014" x2="795" y2="1014" stroke="#222" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="620.0" y="1008" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">13. {keys:[k1 public]}</text>
+<line x1="795" y1="1049" x2="1145" y2="1049" stroke="#222" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="970.0" y="1043" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">14. JWKS (optional proxy-cache)</text>
+<path d="M1145,1071 H1185 V1089 H1147" fill="none" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="1195" y="1083" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">15. Verify signature by kid</text>
+<rect x="20" y="1115" width="1380" height="24" fill="#f0f0f0" stroke="#ccc"/>
+<text x="32" y="1132" font-weight="bold" fill="#333">Key rotation (k1 to k2)</text>
+<line x1="95" y1="1178" x2="270" y2="1178" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="182.5" y="1172" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R1. Write k2 as staged</text>
+<line x1="445" y1="1213" x2="270" y2="1213" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="357.5" y="1207" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R2. Poll: sees k2</text>
+<path d="M445,1235 H485 V1253 H447" fill="none" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="495" y="1247" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R3. Public JWKS = [k1, k2]</text>
+<text x="495" y="1262" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">/keyset still = [k1]</text>
+<rect x="370" y="1285" width="850" height="44" rx="4" fill="#fffbe0" stroke="#d9c770"/>
+<text x="795.0" y="1303" text-anchor="middle" fill="#333">R4. Wait at least the JWKS cache TTL of backends and proxy-cache,</text>
+<text x="795.0" y="1318" text-anchor="middle" fill="#333">so every verifier knows k2 before anything signs with it.</text>
+<line x1="95" y1="1368" x2="270" y2="1368" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="182.5" y="1362" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R5. Promote k2 to active</text>
+<path d="M445,1390 H485 V1408 H447" fill="none" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="495" y="1402" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R6. /keyset = [k2, k1]</text>
+<text x="495" y="1417" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">Public JWKS = [k2, k1]</text>
+<line x1="795" y1="1476" x2="445" y2="1476" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="620.0" y="1455" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R7. rotate_period timer:</text>
+<text x="620.0" y="1470" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">GET /keyset</text>
+<line x1="445" y1="1511" x2="795" y2="1511" stroke="#222" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="620.0" y="1505" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R8. {keys:[k2, k1]}</text>
+<path d="M795,1533 H835 V1551 H797" fill="none" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="845" y="1545" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R9. Sign with k2; k1 kept as previous</text>
+<line x1="970" y1="1611" x2="445" y2="1611" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="707.5" y="1590" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R10. Own timer, later:</text>
+<text x="707.5" y="1605" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">GET /keyset</text>
+<line x1="445" y1="1646" x2="970" y2="1646" stroke="#222" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#a)"/>
+<text x="707.5" y="1640" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R11. {keys:[k2, k1]}</text>
+<path d="M970,1668 H1010 V1686 H972" fill="none" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="1020" y="1680" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R12. Sign with k2</text>
+<rect x="720" y="1710" width="325" height="74" rx="4" fill="#fffbe0" stroke="#d9c770"/>
+<text x="882.5" y="1728" text-anchor="middle" fill="#333">Between R9 and R12, DP 1 signs with k2</text>
+<text x="882.5" y="1743" text-anchor="middle" fill="#333">and DP 2 still signs with k1.</text>
+<text x="882.5" y="1758" text-anchor="middle" fill="#333">Both kids are in the public JWKS,</text>
+<text x="882.5" y="1773" text-anchor="middle" fill="#333">so both tokens verify.</text>
+<line x1="95" y1="1838" x2="270" y2="1838" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="182.5" y="1817" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R13. Retire k1 (after rotate_period</text>
+<text x="182.5" y="1832" text-anchor="middle" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">+ max token lifetime)</text>
+<path d="M445,1860 H485 V1878 H447" fill="none" stroke="#222" stroke-width="1.5" marker-end="url(#a)"/>
+<text x="495" y="1872" text-anchor="start" fill="#111" stroke="#fff" stroke-width="4" paint-order="stroke">R14. Drop k1 from /keyset and public JWKS</text>
+</svg>

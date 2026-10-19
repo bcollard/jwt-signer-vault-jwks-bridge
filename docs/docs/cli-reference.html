@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>jwks-bridge CLI reference</title>
+<meta name="description" content="The jwks-bridge commands: serve, keygen to generate RSA, ECDSA or Ed25519 signing keys as keyset entries, validate to check a keyset document, and version.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/cli-reference.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/cli-reference.html">
+<meta property="og:title" content="jwks-bridge CLI reference">
+<meta property="og:description" content="The jwks-bridge commands: serve, keygen to generate RSA, ECDSA or Ed25519 signing keys as keyset entries, validate to check a keyset document, and version.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "jwks-bridge CLI reference",
+ "description": "The jwks-bridge commands: serve, keygen to generate RSA, ECDSA or Ed25519 signing keys as keyset entries, validate to check a keyset document, and version.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/cli-reference.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html" class="active" aria-current="page">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › CLI reference</p><!-- /breadcrumb -->
+      <h1>CLI reference</h1>
+      <p class="lead"><code>jwks-bridge [command] [flags]</code>. Without a command, <code>serve</code> runs.</p>
+
+      <h2 id="serve">serve</h2>
+      <p>Runs the bridge. Flags are listed in <a href="configuration.html">Configuration</a>; <code>jwks-bridge serve -h</code> prints them with their environment variables.</p>
+
+      <h2 id="keygen">keygen</h2>
+      <p>Generates a key pair and prints it as a keyset entry.</p>
+      <table class="docs-table">
+        <thead><tr><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>--alg</code></td><td><code>RS256</code></td><td>Signing algorithm.</td></tr>
+          <tr><td><code>--kid</code></td><td>UTC timestamp</td><td>Key id.</td></tr>
+          <tr><td><code>--status</code></td><td><code>staged</code></td><td><code>staged</code>, <code>active</code> or <code>retired</code>. Sets <code>staged_at</code> or <code>promoted_at</code>.</td></tr>
+          <tr><td><code>--bits</code></td><td><code>2048</code></td><td>RSA key size.</td></tr>
+          <tr><td><code>--doc</code></td><td><code>false</code></td><td>Wrap the entry in <code>{"keys":[…]}</code> for the file source.</td></tr>
+        </tbody>
+      </table>
+<pre><code>jwks-bridge keygen --alg ES256 --kid 2026-11-k3
+jwks-bridge keygen --status active --doc &gt; default.json</code></pre>
+
+      <h2 id="validate">validate</h2>
+      <p>Validates a document or a bare array of entries, and prints the served order.</p>
+<pre><code>jwks-bridge validate --file default.json
+vault kv get -field=keys secret/jwks-bridge/default | jwks-bridge validate</code></pre>
+      <p><code>--min-stage-duration</code> applies the staging guard (default <code>10m</code>).</p>
+
+      <h2 id="version">version</h2>
+      <p>Prints the version, commit and build date.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="http-api.html"><span class="dir">← Previous</span><span class="ttl">HTTP API</span></a>
+        <a class="next" href="changelog.html"><span class="dir">Next →</span><span class="ttl">Changelog</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

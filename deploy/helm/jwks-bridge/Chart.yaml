@@ -1,0 +1,13 @@
+apiVersion: v2
+name: jwks-bridge
+description: Serves Vault-stored signing keys to the Kong jwt-signer plugin and a public JWKS to backends.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+home: https://bcollard.github.io/jwt-signer-vault-jwks-bridge/
+sources:
+  - https://github.com/bcollard/jwt-signer-vault-jwks-bridge
+keywords: [kong, jwt-signer, jwks, vault, jwt]
+maintainers:
+  - name: Baptiste Collard
+    url: https://github.com/bcollard

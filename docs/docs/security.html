@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>jwks-bridge security model</title>
+<meta name="description" content="How jwks-bridge protects private signing keys: separate listeners, mTLS or Basic auth for Kong data planes, read-only Vault policy, no key logging, and hardened containers.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/security.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/security.html">
+<meta property="og:title" content="jwks-bridge security model">
+<meta property="og:description" content="How jwks-bridge protects private signing keys: separate listeners, mTLS or Basic auth for Kong data planes, read-only Vault policy, no key logging, and hardened containers.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "jwks-bridge security model",
+ "description": "How jwks-bridge protects private signing keys: separate listeners, mTLS or Basic auth for Kong data planes, read-only Vault policy, no key logging, and hardened containers.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/security.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html" class="active" aria-current="page">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › Security</p><!-- /breadcrumb -->
+      <h1>Security</h1>
+      <p class="lead">The bridge serves private keys. These are the controls around them.</p>
+
+      <h2 id="threats">Threats and mitigations</h2>
+      <table class="docs-table">
+        <thead><tr><th>Threat</th><th>Mitigation</th></tr></thead>
+        <tbody>
+          <tr><td>Private keys on the public listener</td><td><code>/keyset</code> is registered only on the private listener, on its own port. A test asserts that no private member appears in any public response.</td></tr>
+          <tr><td>Unauthorized <code>/keyset</code> caller</td><td>mTLS against a client CA with an optional SAN allowlist, or Basic auth compared in constant time. The bridge refuses to start without one of them. Add a NetworkPolicy that admits only Kong data planes.</td></tr>
+          <tr><td>Plain-text key transport</td><td>The private listener requires TLS. <code>--private-insecure-plaintext</code> exists for local development and logs a warning.</td></tr>
+          <tr><td>Keys in logs</td><td>Structured logs contain kids, versions and counts, never key material.</td></tr>
+          <tr><td>Vault credential leak</td><td>Kubernetes auth with short-lived tokens; read-only policy on the bridge paths.</td></tr>
+          <tr><td>Bad document in Vault</td><td>Every load is validated: unique kids, supported algorithms, key type matches <code>alg</code>, RSA at least 2048 bits, active keys carry private members, private and public members belong to the same key pair, one active key per <code>alg</code>. A failing document is rejected and the last good snapshot stays.</td></tr>
+          <tr><td>Container compromise</td><td>Distroless static image, non-root, read-only root filesystem, no capabilities.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="symmetric">Symmetric keys</h2>
+      <p><code>HS*</code> algorithms are rejected: a symmetric key cannot be published in a JWKS.</p>
+
+      <h2 id="reporting">Reporting a vulnerability</h2>
+      <p>Open a <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/security/advisories/new">private security advisory</a> on GitHub.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="observability.html"><span class="dir">← Previous</span><span class="ttl">Metrics and tracing</span></a>
+        <a class="next" href="testing.html"><span class="dir">Next →</span><span class="ttl">End-to-end tests</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

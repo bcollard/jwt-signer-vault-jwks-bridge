@@ -1,0 +1,13 @@
+{{- if .Values.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "jwks-bridge.fullname" . }}
+  labels:
+    {{- include "jwks-bridge.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "jwks-bridge.selectorLabels" . | nindent 6 }}
+{{- end }}

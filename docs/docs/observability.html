@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>jwks-bridge Prometheus metrics and W3C trace context</title>
+<meta name="description" content="Prometheus metrics for keyset freshness, refreshes and requests, and OpenTelemetry tracing with W3C traceparent propagation from Kong to jwks-bridge to Vault.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/observability.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/observability.html">
+<meta property="og:title" content="jwks-bridge Prometheus metrics and W3C trace context">
+<meta property="og:description" content="Prometheus metrics for keyset freshness, refreshes and requests, and OpenTelemetry tracing with W3C traceparent propagation from Kong to jwks-bridge to Vault.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "jwks-bridge Prometheus metrics and W3C trace context",
+ "description": "Prometheus metrics for keyset freshness, refreshes and requests, and OpenTelemetry tracing with W3C traceparent propagation from Kong to jwks-bridge to Vault.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/observability.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html" class="active" aria-current="page">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › Metrics and tracing</p><!-- /breadcrumb -->
+      <h1>Metrics and tracing</h1>
+      <p class="lead">Prometheus metrics on the admin listener, and OpenTelemetry traces that continue the caller's W3C trace context.</p>
+
+      <h2 id="metrics">Prometheus metrics</h2>
+      <p>Served at <code>GET /metrics</code> on the admin listener (<code>:9090</code>).</p>
+      <table class="docs-table">
+        <thead><tr><th>Metric</th><th>Labels</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>jwksbridge_snapshot_age_seconds</code></td><td><code>keyset</code></td><td>Seconds since the source last confirmed the keyset.</td></tr>
+          <tr><td><code>jwksbridge_refresh_total</code></td><td><code>keyset</code>, <code>result</code></td><td>Refreshes: <code>updated</code>, <code>unchanged</code>, <code>error</code>, <code>invalid</code>.</td></tr>
+          <tr><td><code>jwksbridge_keys</code></td><td><code>keyset</code>, <code>status</code></td><td>Keys in the served snapshot per status.</td></tr>
+          <tr><td><code>jwksbridge_requests_total</code></td><td><code>endpoint</code>, <code>code</code></td><td>Requests to <code>jwks</code> and <code>keyset</code>.</td></tr>
+          <tr><td><code>jwksbridge_request_duration_seconds</code></td><td><code>endpoint</code></td><td>Request latency histogram.</td></tr>
+          <tr><td><code>jwksbridge_source_errors_total</code></td><td><code>source</code></td><td>Errors returned by Vault or the file source.</td></tr>
+          <tr><td><code>jwksbridge_build_info</code></td><td><code>version</code>, <code>commit</code></td><td>Always 1.</td></tr>
+        </tbody>
+      </table>
+      <p>Go runtime and process metrics are included.</p>
+
+      <h2 id="alerts">Suggested alerts</h2>
+<pre><code>- alert: JwksBridgeKeysetStale
+  expr: max by (keyset) (jwksbridge_snapshot_age_seconds) &gt; 1800
+- alert: JwksBridgeRefreshFailing
+  expr: sum by (keyset) (rate(jwksbridge_refresh_total{result=~"error|invalid"}[5m])) &gt; 0
+  for: 5m
+- alert: JwksBridgeNoActiveKey
+  expr: max by (keyset) (jwksbridge_keys{status="active"}) == 0
+- alert: JwksBridgeKeysetErrors
+  expr: sum(rate(jwksbridge_requests_total{endpoint="keyset",code!~"2..|304"}[5m])) &gt; 0</code></pre>
+
+      <h2 id="tracing">W3C trace context</h2>
+      <p>Every request on the public and private listeners extracts the <code>traceparent</code> and <code>baggage</code> headers, so a span started by Kong's <code>opentelemetry</code> plugin continues in the bridge. Calls to Vault carry the trace context on, and each background refresh is a <code>keyset.refresh</code> span with the Vault request as a child.</p>
+      <p>Spans are exported only when an exporter is configured with the standard OpenTelemetry variables:</p>
+<pre><code>OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.observability:4318
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf     # or grpc
+OTEL_TRACES_SAMPLER=parentbased_traceidratio
+OTEL_TRACES_SAMPLER_ARG=0.1
+OTEL_SERVICE_NAME=jwks-bridge</code></pre>
+      <p>Without them, propagation still works and nothing is exported. With <code>JWKSB_LOG_LEVEL=debug</code>, access log lines include <code>trace_id</code> and <code>span_id</code>.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="kubernetes.html"><span class="dir">← Previous</span><span class="ttl">Kubernetes and Helm</span></a>
+        <a class="next" href="security.html"><span class="dir">Next →</span><span class="ttl">Security</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

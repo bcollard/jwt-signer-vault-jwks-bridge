@@ -1,0 +1,87 @@
+version: 2
+
+project_name: jwks-bridge
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: ./cmd/jwks-bridge
+    binary: jwks-bridge
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: ["tar.gz"]
+    files:
+      - LICENSE
+      - README.md
+      - src: .third_party_licenses/**/*
+        dst: third_party_licenses
+        strip_parent: true
+
+dockers_v2:
+  - images:
+      - ghcr.io/bcollard/jwks-bridge
+    dockerfile: Dockerfile.release
+    tags:
+      - "{{ .Version }}"
+      - "{{ if not .Prerelease }}latest{{ end }}"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: jwks-bridge
+      org.opencontainers.image.description: Serves Vault-stored signing keys to the Kong jwt-signer plugin and a public JWKS to backends
+      org.opencontainers.image.source: https://github.com/bcollard/jwt-signer-vault-jwks-bridge
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.licenses: MIT
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^ci:'
+      - Merge pull request
+      - Merge branch
+
+homebrew_casks:
+  - name: jwks-bridge
+    binaries: ["jwks-bridge"]
+    repository:
+      owner: bcollard
+      name: homebrew-jwks-bridge
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    directory: Casks
+    homepage: "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+    description: "Serve Vault-stored signing keys to the Kong jwt-signer plugin and a public JWKS to backends"
+    license: MIT
+    commit_author:
+      name: goreleaserbot
+      email: bot@goreleaser.com
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/jwks-bridge"]
+          end

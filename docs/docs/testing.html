@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>End-to-end tests with Kong hybrid mode, Vault and kind</title>
+<meta name="description" content="How the jwks-bridge end-to-end test deploys Vault, the bridge and Kong Gateway Enterprise in hybrid mode with two data planes on kind, then runs a key rotation under load.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/testing.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/testing.html">
+<meta property="og:title" content="End-to-end tests with Kong hybrid mode, Vault and kind">
+<meta property="og:description" content="How the jwks-bridge end-to-end test deploys Vault, the bridge and Kong Gateway Enterprise in hybrid mode with two data planes on kind, then runs a key rotation under load.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "End-to-end tests with Kong hybrid mode, Vault and kind",
+ "description": "How the jwks-bridge end-to-end test deploys Vault, the bridge and Kong Gateway Enterprise in hybrid mode with two data planes on kind, then runs a key rotation under load.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/testing.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html" class="active" aria-current="page">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › End-to-end tests</p><!-- /breadcrumb -->
+      <h1>End-to-end tests</h1>
+      <p class="lead">A Kubernetes environment with Vault, jwks-bridge and Kong Gateway Enterprise in hybrid mode, and a Go test suite that rotates keys under traffic.</p>
+
+      <h2 id="environment">Environment</h2>
+      <table class="docs-table">
+        <thead><tr><th>Namespace</th><th>Workload</th></tr></thead>
+        <tbody>
+          <tr><td><code>vault</code></td><td>Vault dev server with Kubernetes auth and a read-only policy.</td></tr>
+          <tr><td><code>jwks</code></td><td>jwks-bridge from the local Helm chart, two replicas, TLS and Basic auth.</td></tr>
+          <tr><td><code>kong</code></td><td>PostgreSQL, one control plane and two data planes (Kong Helm chart).</td></tr>
+          <tr><td><code>backend</code></td><td>go-httpbin, which echoes the re-signed token.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="assertions">What the tests check</h2>
+      <ul>
+        <li>Both data planes sign with the active key from Vault, and the token verifies against the JWKS served by Kong.</li>
+        <li>The public JWKS served through Kong has no private members.</li>
+        <li>A full stage, promote, remove rotation under continuous traffic through both data planes causes no verification failure. Each data plane's tokens are verified by a simulated backend that caches the JWKS and does not refetch on an unknown kid.</li>
+        <li>The bridge exposes its Prometheus metrics.</li>
+      </ul>
+
+      <h2 id="run">Run it</h2>
+      <p>Needs Docker, kind, kubectl, Helm, Go, jq, openssl and a Kong Enterprise license (<code>jwt-signer</code> is an Enterprise plugin).</p>
+<pre><code>export KONG_LICENSE_DATA='{"license":{...}}'
+make e2e                     # create kind cluster, deploy, test, delete
+
+./test/e2e/run.sh up         # or step by step
+./test/e2e/run.sh test
+./test/e2e/run.sh down</code></pre>
+      <p>To use an existing cluster set <code>E2E_KUBE_CONTEXT</code>, and <code>E2E_LOAD_IMAGE</code> to the command that loads <code>jwks-bridge:e2e</code> into it.</p>
+
+      <h2 id="ci">CI</h2>
+      <p>The GitHub Actions workflow runs the same script on kind when the <code>KONG_LICENSE_DATA</code> repository secret is set.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="security.html"><span class="dir">← Previous</span><span class="ttl">Security</span></a>
+        <a class="next" href="configuration.html"><span class="dir">Next →</span><span class="ttl">Configuration</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

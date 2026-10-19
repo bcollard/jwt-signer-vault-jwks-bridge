@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>jwks-bridge configuration reference</title>
+<meta name="description" content="Every jwks-bridge flag and JWKSB_ environment variable: listeners, TLS and mTLS, Basic auth, Vault and file sources, keysets, refresh interval, max stale and staging guard.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/configuration.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/configuration.html">
+<meta property="og:title" content="jwks-bridge configuration reference">
+<meta property="og:description" content="Every jwks-bridge flag and JWKSB_ environment variable: listeners, TLS and mTLS, Basic auth, Vault and file sources, keysets, refresh interval, max stale and staging guard.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "jwks-bridge configuration reference",
+ "description": "Every jwks-bridge flag and JWKSB_ environment variable: listeners, TLS and mTLS, Basic auth, Vault and file sources, keysets, refresh interval, max stale and staging guard.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/configuration.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html" class="active" aria-current="page">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › Configuration</p><!-- /breadcrumb -->
+      <h1>Configuration</h1>
+      <p class="lead">Each setting is a flag of <code>jwks-bridge serve</code> and an environment variable. Flags win over the environment.</p>
+
+      <h2 id="listeners">Listeners</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variable</th><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWKSB_PUBLIC_ADDR</code></td><td><code>--public-addr</code></td><td><code>:8080</code></td><td>Public JWKS and health. Empty disables it.</td></tr>
+          <tr><td><code>JWKSB_PRIVATE_ADDR</code></td><td><code>--private-addr</code></td><td><code>:8443</code></td><td>Private keyset listener. Empty disables it.</td></tr>
+          <tr><td><code>JWKSB_ADMIN_ADDR</code></td><td><code>--admin-addr</code></td><td><code>:9090</code></td><td>Metrics and probes.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="private">Private listener</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variable</th><th>Flag</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWKSB_TLS_CERT</code>, <code>JWKSB_TLS_KEY</code></td><td><code>--tls-cert</code>, <code>--tls-key</code></td><td>Server certificate and key. Required. Reloaded when the files change.</td></tr>
+          <tr><td><code>JWKSB_CLIENT_CA</code></td><td><code>--client-ca</code></td><td>CA bundle; enables mTLS client authentication.</td></tr>
+          <tr><td><code>JWKSB_ALLOWED_CLIENT_SANS</code></td><td><code>--allowed-client-sans</code></td><td>Comma-separated SAN or CN allowlist. Empty accepts any certificate from the CA.</td></tr>
+          <tr><td><code>JWKSB_BASIC_USER</code></td><td><code>--basic-user</code></td><td>Basic auth user.</td></tr>
+          <tr><td><code>JWKSB_BASIC_PASSWORD_FILE</code></td><td><code>--basic-password-file</code></td><td>File holding the Basic auth password.</td></tr>
+          <tr><td><code>JWKSB_PRIVATE_INSECURE_PLAINTEXT</code></td><td><code>--private-insecure-plaintext</code></td><td><code>true</code> serves the keyset without TLS. Local development only.</td></tr>
+        </tbody>
+      </table>
+      <p>At least one of mTLS or Basic auth is required. When both are set, either one admits the caller.</p>
+
+      <h2 id="source">Source and keysets</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variable</th><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWKSB_SOURCE</code></td><td><code>--source</code></td><td><code>vault</code></td><td><code>vault</code> or <code>file</code>.</td></tr>
+          <tr><td><code>JWKSB_KEYSETS</code></td><td><code>--keysets</code></td><td><code>default=secret/jwks-bridge/default</code></td><td>Comma-separated <code>name=path</code> pairs.</td></tr>
+          <tr><td><code>JWKSB_FILE_DIR</code></td><td><code>--file-dir</code></td><td></td><td>Base directory for relative paths with the file source.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="vault">Vault</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variable</th><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWKSB_VAULT_AUTH</code></td><td><code>--vault-auth</code></td><td><code>token</code></td><td><code>token</code>, <code>kubernetes</code> or <code>approle</code>.</td></tr>
+          <tr><td><code>JWKSB_VAULT_ROLE</code></td><td><code>--vault-role</code></td><td></td><td>Kubernetes auth role.</td></tr>
+          <tr><td><code>JWKSB_VAULT_AUTH_MOUNT</code></td><td><code>--vault-auth-mount</code></td><td>method name</td><td>Auth mount path.</td></tr>
+          <tr><td><code>JWKSB_VAULT_K8S_TOKEN_PATH</code></td><td><code>--vault-k8s-token-path</code></td><td>projected SA token</td><td>Service account token file.</td></tr>
+          <tr><td><code>JWKSB_VAULT_APPROLE_ROLE_ID</code></td><td><code>--vault-approle-role-id</code></td><td></td><td>AppRole role id.</td></tr>
+          <tr><td><code>JWKSB_VAULT_APPROLE_SECRET_ID_FILE</code></td><td><code>--vault-approle-secret-id-file</code></td><td></td><td>File holding the AppRole secret id.</td></tr>
+        </tbody>
+      </table>
+      <p>The Vault client also reads <code>VAULT_ADDR</code>, <code>VAULT_TOKEN</code>, <code>VAULT_CACERT</code>, <code>VAULT_NAMESPACE</code> and the other standard variables.</p>
+
+      <h2 id="timing">Timing</h2>
+      <table class="docs-table">
+        <thead><tr><th>Variable</th><th>Flag</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>JWKSB_REFRESH_INTERVAL</code></td><td><code>--refresh-interval</code></td><td><code>30s</code></td><td>Source poll interval, ±10 % jitter.</td></tr>
+          <tr><td><code>JWKSB_MAX_STALE</code></td><td><code>--max-stale</code></td><td><code>1h</code></td><td><code>/readyz</code> fails when the source has not confirmed a keyset for longer.</td></tr>
+          <tr><td><code>JWKSB_JWKS_MAX_AGE</code></td><td><code>--jwks-max-age</code></td><td><code>300s</code></td><td><code>Cache-Control: max-age</code> of the public JWKS.</td></tr>
+          <tr><td><code>JWKSB_MIN_STAGE_DURATION</code></td><td><code>--min-stage-duration</code></td><td><code>10m</code></td><td>Staging guard; at least twice the refresh interval.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="logging">Logging and tracing</h2>
+      <p><code>JWKSB_LOG_LEVEL</code> (<code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>) and <code>JWKSB_LOG_FORMAT</code> (<code>json</code>, <code>text</code>). Tracing uses the <code>OTEL_*</code> variables listed in <a href="observability.html#tracing">Metrics and tracing</a>.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="testing.html"><span class="dir">← Previous</span><span class="ttl">End-to-end tests</span></a>
+        <a class="next" href="keyset-format.html"><span class="dir">Next →</span><span class="ttl">Keyset format</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

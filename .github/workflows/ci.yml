@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - uses: actions/setup-go@v5.3.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build
+        run: go build ./...
+      - name: Vet
+        run: go vet ./... && go vet -tags e2e ./test/e2e/...
+      - name: Test
+        run: go test -race ./...
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+      - name: Helm lint
+        run: make helm-lint
+      - name: GoReleaser check
+        uses: goreleaser/goreleaser-action@v6.3.0
+        with:
+          version: latest
+          args: check
+
+  e2e:
+    needs: test
+    runs-on: ubuntu-latest
+    # Kong Enterprise license comes from a repository secret; skipped on forks.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      KONG_LICENSE_DATA: ${{ secrets.KONG_LICENSE_DATA }}
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Skip without a Kong license
+        id: license
+        run: |
+          if [ -z "$KONG_LICENSE_DATA" ]; then
+            echo "KONG_LICENSE_DATA secret not set; skipping e2e"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-go@v5.3.0
+        if: steps.license.outputs.skip != 'true'
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: helm/kind-action@v1.12.0
+        if: steps.license.outputs.skip != 'true'
+        with:
+          cluster_name: jwks-bridge-e2e
+          config: test/e2e/kind.yaml
+      - name: Run e2e
+        if: steps.license.outputs.skip != 'true'
+        env:
+          E2E_KUBE_CONTEXT: kind-jwks-bridge-e2e
+          E2E_LOAD_IMAGE: kind load docker-image jwks-bridge:e2e --name jwks-bridge-e2e
+        run: ./test/e2e/run.sh up && ./test/e2e/run.sh test
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          for ns in jwks kong vault; do
+            kubectl -n $ns get pods -o wide || true
+            kubectl -n $ns logs -l app.kubernetes.io/name --all-containers --tail=200 --prefix || true
+          done

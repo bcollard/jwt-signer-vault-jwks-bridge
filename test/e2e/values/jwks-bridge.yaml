@@ -1,0 +1,34 @@
+fullnameOverride: jwks-bridge
+
+image:
+  repository: jwks-bridge
+  tag: e2e
+  pullPolicy: IfNotPresent
+
+source: vault
+keysets:
+  default: secret/jwks-bridge/default
+
+# Short timers so the rotation test runs in a few minutes.
+config:
+  refreshInterval: 2s
+  maxStale: 1m
+  jwksMaxAge: 5s
+  minStageDuration: 10s
+  logLevel: debug
+  logFormat: json
+
+vault:
+  address: http://vault.vault.svc:8200
+  auth: kubernetes
+  role: jwks-bridge
+
+private:
+  enabled: true
+  tls:
+    secretName: jwks-bridge-tls
+  basicAuth:
+    secretName: jwks-bridge-basic-auth
+
+networkPolicy:
+  enabled: false

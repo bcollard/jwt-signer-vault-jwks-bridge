@@ -1,0 +1,37 @@
+# Upstream that echoes request headers, so the test can read the re-signed token.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backend
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: httpbin}
+  template:
+    metadata:
+      labels: {app: httpbin}
+    spec:
+      containers:
+        - name: httpbin
+          image: mccutchen/go-httpbin:2.26.0
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet: {path: /status/200, port: 8080}
+            periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: backend
+spec:
+  selector: {app: httpbin}
+  ports:
+    - port: 8080

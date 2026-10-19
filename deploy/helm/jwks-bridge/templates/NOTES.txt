@@ -1,0 +1,12 @@
+jwks-bridge is installed.
+
+Public JWKS (route it through Kong for backends):
+  http://{{ include "jwks-bridge.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.service.publicPort }}/.well-known/jwks.json
+{{- if .Values.private.enabled }}
+
+jwt-signer access_token_keyset (Kong data planes call it directly, never through Kong):
+  https://{{ include "jwks-bridge.fullname" . }}.{{ .Release.Namespace }}.svc:{{ .Values.private.port }}/keyset?name=default
+{{- end }}
+
+Metrics:
+  http://{{ include "jwks-bridge.fullname" . }}-admin.{{ .Release.Namespace }}.svc:{{ .Values.admin.port }}/metrics

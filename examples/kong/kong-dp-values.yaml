@@ -1,0 +1,16 @@
+# Kong chart values fragment for data planes calling jwks-bridge.
+env:
+  # Trust the CA that issued the jwks-bridge private listener certificate.
+  lua_ssl_trusted_certificate: system,/etc/secrets/jwks-bridge-ca/ca.crt
+
+# Credentials for the "{vault://env/...}" references in kong.yaml.
+customEnv:
+  JWKS_BRIDGE_USER:
+    valueFrom:
+      secretKeyRef: {name: jwks-bridge-basic-auth, key: username}
+  JWKS_BRIDGE_PASS:
+    valueFrom:
+      secretKeyRef: {name: jwks-bridge-basic-auth, key: password}
+
+secretVolumes:
+  - jwks-bridge-ca

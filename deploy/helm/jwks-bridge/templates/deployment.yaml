@@ -1,0 +1,240 @@
+{{- if and (eq .Values.source "vault") (not .Values.vault.address) }}
+{{- fail "vault.address is required with source=vault" }}
+{{- end }}
+{{- if and .Values.private.enabled (not .Values.private.tls.secretName) }}
+{{- fail "private.tls.secretName is required when the private listener is enabled" }}
+{{- end }}
+{{- if and .Values.private.enabled (not .Values.private.mtls.caSecret) (not .Values.private.basicAuth.secretName) }}
+{{- fail "set private.mtls.caSecret or private.basicAuth.secretName to authenticate /keyset callers" }}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "jwks-bridge.fullname" . }}
+  labels:
+    {{- include "jwks-bridge.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "jwks-bridge.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "jwks-bridge.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "jwks-bridge.serviceAccountName" . }}
+      automountServiceAccountToken: {{ and (eq .Values.source "vault") (eq .Values.vault.auth "kubernetes") }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: jwks-bridge
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args: ["serve"]
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: JWKSB_PUBLIC_ADDR
+              value: ":{{ .Values.service.publicPort }}"
+            - name: JWKSB_PRIVATE_ADDR
+              value: {{ ternary (printf ":%v" .Values.private.port) "" .Values.private.enabled | quote }}
+            - name: JWKSB_ADMIN_ADDR
+              value: ":{{ .Values.admin.port }}"
+            - name: JWKSB_SOURCE
+              value: {{ .Values.source | quote }}
+            - name: JWKSB_KEYSETS
+              value: {{ include "jwks-bridge.keysets" . | quote }}
+            - name: JWKSB_REFRESH_INTERVAL
+              value: {{ .Values.config.refreshInterval | quote }}
+            - name: JWKSB_MAX_STALE
+              value: {{ .Values.config.maxStale | quote }}
+            - name: JWKSB_JWKS_MAX_AGE
+              value: {{ .Values.config.jwksMaxAge | quote }}
+            - name: JWKSB_MIN_STAGE_DURATION
+              value: {{ .Values.config.minStageDuration | quote }}
+            - name: JWKSB_LOG_LEVEL
+              value: {{ .Values.config.logLevel | quote }}
+            - name: JWKSB_LOG_FORMAT
+              value: {{ .Values.config.logFormat | quote }}
+            {{- if eq .Values.source "file" }}
+            - name: JWKSB_FILE_DIR
+              value: /keysets
+            {{- end }}
+            {{- if eq .Values.source "vault" }}
+            - name: VAULT_ADDR
+              value: {{ .Values.vault.address | quote }}
+            {{- with .Values.vault.namespace }}
+            - name: VAULT_NAMESPACE
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if .Values.vault.caSecret }}
+            - name: VAULT_CACERT
+              value: /etc/jwks-bridge/vault-ca/ca.crt
+            {{- end }}
+            - name: JWKSB_VAULT_AUTH
+              value: {{ .Values.vault.auth | quote }}
+            - name: JWKSB_VAULT_ROLE
+              value: {{ .Values.vault.role | quote }}
+            {{- with .Values.vault.authMount }}
+            - name: JWKSB_VAULT_AUTH_MOUNT
+              value: {{ . | quote }}
+            {{- end }}
+            {{- if eq .Values.vault.auth "approle" }}
+            - name: JWKSB_VAULT_APPROLE_ROLE_ID
+              value: {{ .Values.vault.approle.roleId | quote }}
+            - name: JWKSB_VAULT_APPROLE_SECRET_ID_FILE
+              value: /etc/jwks-bridge/vault-approle/secret-id
+            {{- end }}
+            {{- if eq .Values.vault.auth "token" }}
+            - name: VAULT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ required "vault.tokenSecret is required with vault.auth=token" .Values.vault.tokenSecret }}
+                  key: token
+            {{- end }}
+            {{- end }}
+            {{- if .Values.private.enabled }}
+            - name: JWKSB_TLS_CERT
+              value: /etc/jwks-bridge/tls/tls.crt
+            - name: JWKSB_TLS_KEY
+              value: /etc/jwks-bridge/tls/tls.key
+            {{- if .Values.private.mtls.caSecret }}
+            - name: JWKSB_CLIENT_CA
+              value: /etc/jwks-bridge/client-ca/ca.crt
+            - name: JWKSB_ALLOWED_CLIENT_SANS
+              value: {{ join "," .Values.private.mtls.allowedSANs | quote }}
+            {{- end }}
+            {{- if .Values.private.basicAuth.secretName }}
+            - name: JWKSB_BASIC_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.private.basicAuth.secretName }}
+                  key: username
+            - name: JWKSB_BASIC_PASSWORD_FILE
+              value: /etc/jwks-bridge/basic-auth/password
+            {{- end }}
+            {{- end }}
+            {{- with .Values.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          ports:
+            - name: public
+              containerPort: {{ .Values.service.publicPort }}
+            {{- if .Values.private.enabled }}
+            - name: private
+              containerPort: {{ .Values.private.port }}
+            {{- end }}
+            - name: admin
+              containerPort: {{ .Values.admin.port }}
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: admin
+            periodSeconds: 5
+            failureThreshold: 2
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: admin
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.private.enabled }}
+            - name: tls
+              mountPath: /etc/jwks-bridge/tls
+              readOnly: true
+            {{- if .Values.private.mtls.caSecret }}
+            - name: client-ca
+              mountPath: /etc/jwks-bridge/client-ca
+              readOnly: true
+            {{- end }}
+            {{- if .Values.private.basicAuth.secretName }}
+            - name: basic-auth
+              mountPath: /etc/jwks-bridge/basic-auth
+              readOnly: true
+            {{- end }}
+            {{- end }}
+            {{- if and (eq .Values.source "vault") .Values.vault.caSecret }}
+            - name: vault-ca
+              mountPath: /etc/jwks-bridge/vault-ca
+              readOnly: true
+            {{- end }}
+            {{- if and (eq .Values.source "vault") (eq .Values.vault.auth "approle") }}
+            - name: vault-approle
+              mountPath: /etc/jwks-bridge/vault-approle
+              readOnly: true
+            {{- end }}
+            {{- if eq .Values.source "file" }}
+            - name: keysets
+              mountPath: /keysets
+              readOnly: true
+            {{- end }}
+      volumes:
+        {{- if .Values.private.enabled }}
+        - name: tls
+          secret:
+            secretName: {{ .Values.private.tls.secretName }}
+        {{- if .Values.private.mtls.caSecret }}
+        - name: client-ca
+          secret:
+            secretName: {{ .Values.private.mtls.caSecret }}
+        {{- end }}
+        {{- if .Values.private.basicAuth.secretName }}
+        - name: basic-auth
+          secret:
+            secretName: {{ .Values.private.basicAuth.secretName }}
+            items:
+              - key: password
+                path: password
+        {{- end }}
+        {{- end }}
+        {{- if and (eq .Values.source "vault") .Values.vault.caSecret }}
+        - name: vault-ca
+          secret:
+            secretName: {{ .Values.vault.caSecret }}
+        {{- end }}
+        {{- if and (eq .Values.source "vault") (eq .Values.vault.auth "approle") }}
+        - name: vault-approle
+          secret:
+            secretName: {{ required "vault.approle.secretIdSecret is required with vault.auth=approle" .Values.vault.approle.secretIdSecret }}
+        {{- end }}
+        {{- if eq .Values.source "file" }}
+        - name: keysets
+          {{- if .Values.file.secret }}
+          secret:
+            secretName: {{ .Values.file.secret }}
+          {{- else }}
+          configMap:
+            name: {{ required "file.configMap or file.secret is required with source=file" .Values.file.configMap }}
+          {{- end }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

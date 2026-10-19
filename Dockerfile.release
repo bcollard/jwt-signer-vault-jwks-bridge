@@ -1,0 +1,7 @@
+FROM gcr.io/distroless/static-debian13:nonroot
+ARG TARGETPLATFORM
+COPY $TARGETPLATFORM/jwks-bridge /jwks-bridge
+USER 65532:65532
+EXPOSE 8080 8443 9090
+ENTRYPOINT ["/jwks-bridge"]
+CMD ["serve"]

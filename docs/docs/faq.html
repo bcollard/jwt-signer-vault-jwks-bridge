@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>jwks-bridge FAQ</title>
+<meta name="description" content="Answers about using HashiCorp Vault keys with the Kong jwt-signer plugin: Vault Transit, Konnect, the default kong keyset, symmetric keys and Vault outages.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/faq.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/faq.html">
+<meta property="og:title" content="jwks-bridge FAQ">
+<meta property="og:description" content="Answers about using HashiCorp Vault keys with the Kong jwt-signer plugin: Vault Transit, Konnect, the default kong keyset, symmetric keys and Vault outages.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "jwks-bridge FAQ",
+ "description": "Answers about using HashiCorp Vault keys with the Kong jwt-signer plugin: Vault Transit, Konnect, the default kong keyset, symmetric keys and Vault outages.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/faq.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html" class="active" aria-current="page">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › FAQ</p><!-- /breadcrumb -->
+      <h1>Frequently asked questions</h1>
+      <p class="lead">Short answers, with links to the pages that cover each topic.</p>
+
+      <h2 id="kong-keyset">Why not use the default kong keyset?</h2>
+      <p>In hybrid mode each data plane generates and caches its own keys in memory, so data planes sign with different keys, and there is no data plane endpoint that publishes them. See <a href="how-it-works.html#plugin-facts">How it works</a>.</p>
+
+      <h2 id="vault-direct">Can Kong read the key from Vault directly?</h2>
+      <p>No. Only the keyset client username and password fields accept Kong vault references; key material cannot be referenced. The keyset URL must return a JWK Set with private members, which neither the KV v2 API nor Vault's OIDC keys endpoint returns.</p>
+
+      <h2 id="transit">Can I use Vault Transit?</h2>
+      <p>No. Transit keys are not exportable, and the plugin signs locally with the private key.</p>
+
+      <h2 id="konnect">Does it work with Konnect?</h2>
+      <p>Yes. Konnect data planes call the bridge like self-managed ones. See <a href="kong-hybrid.html#konnect">Konnect</a>.</p>
+
+      <h2 id="hs256">Can I use HS256?</h2>
+      <p>No. A symmetric key cannot be published in a public JWKS; the bridge rejects <code>HS*</code> keys.</p>
+
+      <h2 id="outage">What happens when Vault is down?</h2>
+      <p>Signing and verification continue with the last good snapshot. Readiness fails after <code>max_stale</code>, so alert on <code>jwksbridge_snapshot_age_seconds</code>. See <a href="how-it-works.html#caching">Caching and Vault outages</a>.</p>
+
+      <h2 id="generate">Does the bridge generate or rotate keys?</h2>
+      <p>No. Operators or CI write keys to Vault with <code>jwks-bridge keygen</code> or <code>examples/vault/rotate.sh</code>; the bridge only reads them. See <a href="key-rotation.html">Key rotation</a>.</p>
+
+      <h2 id="other-stores">Are other secret stores supported?</h2>
+      <p>Vault KV v2 and local files today. The source interface is small; AWS Secrets Manager, GCP Secret Manager and Azure Key Vault are planned.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="how-it-works.html"><span class="dir">← Previous</span><span class="ttl">How it works</span></a>
+        <a class="next" href="kong-hybrid.html"><span class="dir">Next →</span><span class="ttl">jwt-signer in hybrid mode</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

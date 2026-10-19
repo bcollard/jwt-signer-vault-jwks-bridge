@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>Rotating jwt-signer signing keys stored in Vault</title>
+<meta name="description" content="A staged key rotation workflow for the Kong jwt-signer plugin with keys in HashiCorp Vault: stage, promote, retire, remove, with no token verification failures across data planes.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/key-rotation.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/key-rotation.html">
+<meta property="og:title" content="Rotating jwt-signer signing keys stored in Vault">
+<meta property="og:description" content="A staged key rotation workflow for the Kong jwt-signer plugin with keys in HashiCorp Vault: stage, promote, retire, remove, with no token verification failures across data planes.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Rotating jwt-signer signing keys stored in Vault",
+ "description": "A staged key rotation workflow for the Kong jwt-signer plugin with keys in HashiCorp Vault: stage, promote, retire, remove, with no token verification failures across data planes.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/key-rotation.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html" class="active" aria-current="page">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › Key rotation</p><!-- /breadcrumb -->
+      <h1>Key rotation</h1>
+      <p class="lead">Rotation is a sequence of status changes in Vault. Every verifier learns the new public key before any data plane signs with it.</p>
+
+      <h2 id="steps">Steps</h2>
+      <table class="docs-table">
+        <thead><tr><th>Step</th><th>Action</th><th>Effect</th></tr></thead>
+        <tbody>
+          <tr><td>Stage</td><td>Write k2 with <code>status: staged</code>.</td><td>k2 appears in the public JWKS only.</td></tr>
+          <tr><td>Wait</td><td>At least the longest JWKS cache TTL (backends, <code>proxy-cache</code>, <code>jwks_max_age</code>) plus <code>refresh_interval</code>.</td><td>Every verifier knows k2.</td></tr>
+          <tr><td>Promote</td><td>Set k2 <code>active</code>, k1 <code>retired</code>.</td><td><code>/keyset</code> returns <code>[k2, k1]</code>.</td></tr>
+          <tr><td>Propagate</td><td>Each data plane reloads on its <code>access_token_keyset_rotate_period</code> timer.</td><td>Data planes switch to k2 one by one; tokens from both keys verify.</td></tr>
+          <tr><td>Wait</td><td>At least the rotate period plus the longest token lifetime plus clock skew.</td><td>No live token carries k1.</td></tr>
+          <tr><td>Remove</td><td>Delete k1.</td><td>k1 leaves both documents.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="script">Helper script</h2>
+      <p><code>examples/vault/rotate.sh</code> runs each step with the Vault CLI and <code>jq</code>:</p>
+<pre><code>export KEYSET_PATH=secret/jwks-bridge/default
+./rotate.sh stage RS256      # prints the new kid
+./rotate.sh promote &lt;kid&gt;
+./rotate.sh show
+./rotate.sh remove &lt;old kid&gt;</code></pre>
+
+      <h2 id="guard">Staging guard</h2>
+      <p>The bridge refuses to serve a key first until <code>min_stage_duration</code> (default 10 min) has passed since its <code>staged_at</code>. Until then it keeps the most recently promoted retired key of the same algorithm first and logs a warning. This protects against a promotion written too early. Keep <code>min_stage_duration</code> well above <code>refresh_interval</code>, so that bridge replicas that disagree for one refresh never matter.</p>
+
+      <h2 id="revoke">Emergency revoke</h2>
+      <p>Remove the compromised key from Vault. The public JWKS drops it after the next refresh and cache expiry; data planes drop it after their next reload. Verifiers that still cache it accept its tokens until their cache expires, so keep backend JWKS TTLs short.</p>
+
+      <h2 id="tested">Tested end to end</h2>
+      <p>The <a href="testing.html">end-to-end test</a> runs this rotation with two hybrid data planes under continuous traffic and fails on any verification error.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="kong-hybrid.html"><span class="dir">← Previous</span><span class="ttl">jwt-signer in hybrid mode</span></a>
+        <a class="next" href="vault.html"><span class="dir">Next →</span><span class="ttl">Vault setup</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

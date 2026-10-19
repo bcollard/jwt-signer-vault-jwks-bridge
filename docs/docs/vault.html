@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>HashiCorp Vault setup for jwks-bridge</title>
+<meta name="description" content="Configure HashiCorp Vault KV v2, a read-only policy and Kubernetes or AppRole authentication for jwks-bridge, and store JWT signing keys for the Kong jwt-signer plugin.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/vault.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/vault.html">
+<meta property="og:title" content="HashiCorp Vault setup for jwks-bridge">
+<meta property="og:description" content="Configure HashiCorp Vault KV v2, a read-only policy and Kubernetes or AppRole authentication for jwks-bridge, and store JWT signing keys for the Kong jwt-signer plugin.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "HashiCorp Vault setup for jwks-bridge",
+ "description": "Configure HashiCorp Vault KV v2, a read-only policy and Kubernetes or AppRole authentication for jwks-bridge, and store JWT signing keys for the Kong jwt-signer plugin.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/vault.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html" class="active" aria-current="page">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › Vault setup</p><!-- /breadcrumb -->
+      <h1>Vault setup</h1>
+      <p class="lead">One KV v2 secret per keyset, a read-only policy, and an auth method for the bridge.</p>
+
+      <h2 id="kv">KV v2 secret</h2>
+      <p>The secret holds one field, <code>keys</code>, with the JSON array of entries described in <a href="keyset-format.html">Keyset format</a>. The field may be a JSON value or a string containing JSON. The keyset path in the bridge configuration is <code>&lt;mount&gt;/&lt;path&gt;</code>, for example <code>secret/jwks-bridge/default</code>.</p>
+<pre><code>jwks-bridge keygen --alg RS256 --status active | jq -c '[.]' \
+  | vault kv put secret/jwks-bridge/default keys=-
+vault kv get -field=keys secret/jwks-bridge/default | jq</code></pre>
+      <p>Vault Transit cannot be used: its keys are not exportable, and the plugin needs the private key.</p>
+
+      <h2 id="policy">Policy</h2>
+<pre><code>path "secret/data/jwks-bridge/*" {
+  capabilities = ["read"]
+}
+path "secret/metadata/jwks-bridge/*" {
+  capabilities = ["read"]
+}</code></pre>
+
+      <h2 id="kubernetes-auth">Kubernetes auth</h2>
+      <p>The default in clusters. The bridge logs in with its service account token and renews the Vault token; when it can no longer be renewed it logs in again.</p>
+<pre><code>vault auth enable kubernetes
+vault write auth/kubernetes/config kubernetes_host=https://kubernetes.default.svc:443
+vault write auth/kubernetes/role/jwks-bridge \
+  bound_service_account_names=jwks-bridge \
+  bound_service_account_namespaces=jwks \
+  policies=jwks-bridge ttl=1h</code></pre>
+      <p>Bridge settings: <code>JWKSB_VAULT_AUTH=kubernetes</code>, <code>JWKSB_VAULT_ROLE=jwks-bridge</code>, and <code>JWKSB_VAULT_AUTH_MOUNT</code> when the method is mounted elsewhere.</p>
+
+      <h2 id="approle">AppRole</h2>
+      <p>Set <code>JWKSB_VAULT_AUTH=approle</code>, <code>JWKSB_VAULT_APPROLE_ROLE_ID</code> and <code>JWKSB_VAULT_APPROLE_SECRET_ID_FILE</code>.</p>
+
+      <h2 id="token">Static token</h2>
+      <p>For development: <code>JWKSB_VAULT_AUTH=token</code> and <code>VAULT_TOKEN</code>.</p>
+
+      <h2 id="connection">Connection settings</h2>
+      <p>The standard Vault client variables apply: <code>VAULT_ADDR</code>, <code>VAULT_CACERT</code>, <code>VAULT_NAMESPACE</code> (Vault Enterprise), <code>VAULT_CLIENT_TIMEOUT</code>. The repository has a setup script in <code>examples/vault/setup.sh</code>.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="key-rotation.html"><span class="dir">← Previous</span><span class="ttl">Key rotation</span></a>
+        <a class="next" href="kubernetes.html"><span class="dir">Next →</span><span class="ttl">Kubernetes and Helm</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

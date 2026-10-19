@@ -1,0 +1,21 @@
+# cert-manager Certificate for the private listener. The Issuer must be trusted
+# by the Kong data planes (lua_ssl_trusted_certificate).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: jwks-bridge-tls
+  namespace: jwks
+spec:
+  secretName: jwks-bridge-tls
+  duration: 2160h
+  renewBefore: 360h
+  dnsNames:
+    - jwks-bridge.jwks.svc
+    - jwks-bridge.jwks.svc.cluster.local
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  usages: [server auth]
+  issuerRef:
+    kind: ClusterIssuer
+    name: internal-ca

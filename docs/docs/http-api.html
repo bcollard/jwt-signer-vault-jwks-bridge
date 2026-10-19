@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>jwks-bridge HTTP API</title>
+<meta name="description" content="The jwks-bridge endpoints: public JWKS at /.well-known/jwks.json, the private keyset at /keyset for the Kong jwt-signer plugin, health, readiness and Prometheus metrics, with ETag caching.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/http-api.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/http-api.html">
+<meta property="og:title" content="jwks-bridge HTTP API">
+<meta property="og:description" content="The jwks-bridge endpoints: public JWKS at /.well-known/jwks.json, the private keyset at /keyset for the Kong jwt-signer plugin, health, readiness and Prometheus metrics, with ETag caching.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "jwks-bridge HTTP API",
+ "description": "The jwks-bridge endpoints: public JWKS at /.well-known/jwks.json, the private keyset at /keyset for the Kong jwt-signer plugin, health, readiness and Prometheus metrics, with ETag caching.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/http-api.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html" class="active" aria-current="page">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › HTTP API</p><!-- /breadcrumb -->
+      <h1>HTTP API</h1>
+      <p class="lead">Three listeners, so the private endpoint never shares a port with the public one.</p>
+
+      <h2 id="public">Public listener</h2>
+      <table class="docs-table">
+        <thead><tr><th>Endpoint</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /.well-known/jwks.json</code>, <code>GET /jwks.json</code></td><td>Public JWKS of keyset <code>?name=</code> (default <code>default</code>).</td></tr>
+          <tr><td><code>GET /jwks/{name}</code></td><td>Same, keyset in the path.</td></tr>
+          <tr><td><code>GET /healthz</code></td><td>Liveness; does not depend on the source.</td></tr>
+          <tr><td><code>GET /readyz</code></td><td>503 until every keyset has loaded, and when one is older than <code>max_stale</code>.</td></tr>
+        </tbody>
+      </table>
+      <p>Headers: <code>Content-Type: application/jwk-set+json</code>, <code>Cache-Control: public, max-age=&lt;jwks_max_age&gt;</code>, <code>ETag</code>.</p>
+
+      <h2 id="private">Private listener</h2>
+      <table class="docs-table">
+        <thead><tr><th>Endpoint</th><th>Response</th></tr></thead>
+        <tbody>
+          <tr><td><code>GET /keyset</code>, <code>GET /keyset?name={name}</code>, <code>GET /keyset/{name}</code></td><td>Keyset with private members: active keys first, then retired keys.</td></tr>
+          <tr><td><code>GET /healthz</code></td><td>Liveness.</td></tr>
+        </tbody>
+      </table>
+      <p>Headers: <code>Content-Type: application/jwk-set+json</code>, <code>Cache-Control: no-store</code>, <code>ETag</code>.</p>
+
+      <h2 id="admin">Admin listener</h2>
+      <p><code>GET /metrics</code> (Prometheus), <code>GET /healthz</code>, <code>GET /readyz</code>.</p>
+
+      <h2 id="caching">Conditional requests</h2>
+      <p>Both documents carry a strong <code>ETag</code>. A matching <code>If-None-Match</code> returns <code>304 Not Modified</code> with no body.</p>
+
+      <h2 id="errors">Errors</h2>
+      <table class="docs-table">
+        <thead><tr><th>Code</th><th>When</th></tr></thead>
+        <tbody>
+          <tr><td><code>401</code></td><td>Basic auth configured and credentials missing or wrong.</td></tr>
+          <tr><td><code>403</code></td><td>mTLS only, and no allowed client certificate.</td></tr>
+          <tr><td><code>404</code></td><td>Unknown keyset name.</td></tr>
+          <tr><td><code>503</code></td><td>The keyset has never loaded.</td></tr>
+        </tbody>
+      </table>
+      <p>Error bodies are <code>{"error":"…"}</code>.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="keyset-format.html"><span class="dir">← Previous</span><span class="ttl">Keyset format</span></a>
+        <a class="next" href="cli-reference.html"><span class="dir">Next →</span><span class="ttl">CLI reference</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

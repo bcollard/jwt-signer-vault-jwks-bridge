@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>jwks-bridge keyset document format</title>
+<meta name="description" content="The keyset document stored in Vault for jwks-bridge: entries with kid, status, staged_at, promoted_at and a JWK, the validation rules, and the order of keys in the served keyset.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/keyset-format.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/keyset-format.html">
+<meta property="og:title" content="jwks-bridge keyset document format">
+<meta property="og:description" content="The keyset document stored in Vault for jwks-bridge: entries with kid, status, staged_at, promoted_at and a JWK, the validation rules, and the order of keys in the served keyset.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "jwks-bridge keyset document format",
+ "description": "The keyset document stored in Vault for jwks-bridge: entries with kid, status, staged_at, promoted_at and a JWK, the validation rules, and the order of keys in the served keyset.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/keyset-format.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html" class="active" aria-current="page">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › Keyset format</p><!-- /breadcrumb -->
+      <h1>Keyset format</h1>
+      <p class="lead">The JSON stored in the Vault <code>keys</code> field, and how the bridge turns it into the two served documents.</p>
+
+      <h2 id="entry">Entry</h2>
+<pre><code>[
+  {
+    "kid": "2026-10-k2",
+    "status": "active",
+    "staged_at": "2026-10-19T08:50:00Z",
+    "promoted_at": "2026-10-19T09:00:00Z",
+    "jwk": { "kty": "RSA", "alg": "RS256", "use": "sig", "kid": "2026-10-k2",
+             "n": "…", "e": "AQAB", "d": "…", "p": "…", "q": "…",
+             "dp": "…", "dq": "…", "qi": "…" }
+  }
+]</code></pre>
+      <table class="docs-table">
+        <thead><tr><th>Field</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>kid</code></td><td>Unique, non-empty, equal to <code>jwk.kid</code>.</td></tr>
+          <tr><td><code>status</code></td><td><code>staged</code>, <code>active</code> or <code>retired</code>.</td></tr>
+          <tr><td><code>staged_at</code></td><td>RFC 3339 time the key was staged. Used by the staging guard.</td></tr>
+          <tr><td><code>promoted_at</code></td><td>RFC 3339 time the key became active. Orders retired keys.</td></tr>
+          <tr><td><code>jwk</code></td><td>The key as a JWK, with <code>alg</code> set.</td></tr>
+        </tbody>
+      </table>
+      <p><code>jwks-bridge keygen</code> produces entries in this format.</p>
+
+      <h2 id="statuses">Statuses</h2>
+      <table class="docs-table">
+        <thead><tr><th>Status</th><th>Public JWKS</th><th>Keyset</th><th>Position in keyset</th></tr></thead>
+        <tbody>
+          <tr><td><code>staged</code></td><td>yes</td><td>no</td><td></td></tr>
+          <tr><td><code>active</code></td><td>yes</td><td>yes</td><td>first for its <code>alg</code></td></tr>
+          <tr><td><code>retired</code></td><td>yes</td><td>yes</td><td>after active keys, most recently promoted first</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="algorithms">Algorithms</h2>
+      <p><code>RS256</code>, <code>RS512</code>, <code>PS256</code>, <code>PS384</code>, <code>PS512</code> (RSA, 2048 bits or more), <code>ES256</code> (P-256), <code>ES384</code> (P-384), <code>ES512</code> (P-521) and <code>EdDSA</code> (Ed25519): the asymmetric values of the plugin's <code>access_token_signing_algorithm</code>.</p>
+
+      <h2 id="validation">Validation</h2>
+      <ul>
+        <li>At least one active key, and at most one active key per <code>alg</code>.</li>
+        <li>The key type and curve match <code>alg</code>; <code>use</code>, when set, is <code>sig</code>.</li>
+        <li>Active keys carry private members, and the private key matches the public members (checked by signing and verifying a probe).</li>
+        <li>A document that fails is rejected as a whole; the previous snapshot keeps being served.</li>
+      </ul>
+<pre><code>vault kv get -field=keys secret/jwks-bridge/default | jwks-bridge validate</code></pre>
+
+      <h2 id="public">Public derivation</h2>
+      <p>The public JWKS is the JWK with <code>d</code>, <code>p</code>, <code>q</code>, <code>dp</code>, <code>dq</code>, <code>qi</code>, <code>oth</code> and <code>k</code> removed. Other members, such as <code>x5c</code>, are kept.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="configuration.html"><span class="dir">← Previous</span><span class="ttl">Configuration</span></a>
+        <a class="next" href="http-api.html"><span class="dir">Next →</span><span class="ttl">HTTP API</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

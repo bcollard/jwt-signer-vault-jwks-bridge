@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>How jwks-bridge works with Kong jwt-signer and Vault</title>
+<meta name="description" content="Why the Kong jwt-signer plugin needs an external keyset URL in hybrid mode, how jwks-bridge serves it from Vault, and how caching and stale-if-error keep signing up during Vault outages.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/how-it-works.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/how-it-works.html">
+<meta property="og:title" content="How jwks-bridge works with Kong jwt-signer and Vault">
+<meta property="og:description" content="Why the Kong jwt-signer plugin needs an external keyset URL in hybrid mode, how jwks-bridge serves it from Vault, and how caching and stale-if-error keep signing up during Vault outages.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "How jwks-bridge works with Kong jwt-signer and Vault",
+ "description": "Why the Kong jwt-signer plugin needs an external keyset URL in hybrid mode, how jwks-bridge serves it from Vault, and how caching and stale-if-error keep signing up during Vault outages.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/how-it-works.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html" class="active" aria-current="page">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › How it works</p><!-- /breadcrumb -->
+      <h1>How it works</h1>
+      <p class="lead">The plugin behaviour that makes an external keyset necessary, and the request paths through Kong.</p>
+
+      <h2 id="architecture">Architecture</h2>
+      <p><img src="../kong-jwt-signer-hybrid-sequence.svg" alt="Sequence diagram: data planes load the keyset from jwks-bridge, backends fetch the public JWKS through Kong, operators rotate keys in Vault" style="width:100%;height:auto"></p>
+      <table class="docs-table">
+        <thead><tr><th>Component</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td>Vault</td><td>Stores the key pairs in KV v2.</td></tr>
+          <tr><td>jwks-bridge</td><td>Reads Vault, caches, serves the keyset and the public JWKS. Two or more replicas.</td></tr>
+          <tr><td>Kong control plane</td><td>Holds the configuration. Never fetches keys.</td></tr>
+          <tr><td>Kong data planes</td><td>Fetch <code>/keyset</code> directly from the bridge, sign tokens, proxy <code>/.well-known/jwks.json</code> to the bridge.</td></tr>
+          <tr><td>Backend applications</td><td>Fetch the public JWKS through a data plane.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="plugin-facts">jwt-signer behaviour this relies on</h2>
+      <p>Read from the <code>kong-ee</code> source of the <code>jwt-signer</code> plugin:</p>
+      <ul>
+        <li><code>access_token_keyset</code> is a keyset name or an <code>https://</code> URL. An external signing key can only be supplied by URL.</li>
+        <li>The URL must return a top-level <code>keys</code> array. Private JWK members are kept, so the plugin can sign with them.</li>
+        <li>Vault KV v2 wraps secrets as <code>{data:{data:…}}</code>, and Vault's own OIDC keys endpoint returns public keys only. Neither works as the keyset URL.</li>
+        <li>There is no Admin API route to import a key into a keyset, and the JWKS endpoint exists only on the Admin API.</li>
+        <li>In hybrid mode data planes have no database; the default <code>kong</code> keyset would be a different key pair on each data plane.</li>
+        <li>Signing uses the first key that matches <code>access_token_signing_algorithm</code>. The bridge returns the active key first.</li>
+        <li>Each data plane reloads the URL on its own <code>access_token_keyset_rotate_period</code> timer.</li>
+      </ul>
+
+      <h2 id="routing">Routing</h2>
+      <p><code>/.well-known/jwks.json</code> goes through a Kong Route, so backends only talk to Kong, and <code>proxy-cache</code> can absorb the load. <code>/keyset</code> is not routed through Kong: it returns private keys, and a data plane fetching its own signing keys through itself is circular. Data planes call it directly on the internal network, with mTLS or Basic auth.</p>
+
+      <h2 id="caching">Caching and Vault outages</h2>
+      <ul>
+        <li>Each keyset is held as one immutable snapshot with precomputed bodies and ETags; handlers never lock.</li>
+        <li>A refresher polls every <code>refresh_interval</code> (default 30 s, ±10 % jitter) and skips parsing when the KV version is unchanged. Concurrent refreshes of a keyset share one Vault read.</li>
+        <li>A document that fails validation is rejected and the last good snapshot stays in place.</li>
+        <li>If Vault is unreachable the last good snapshot keeps being served. <code>/readyz</code> turns not-ready after <code>max_stale</code> (default 1 h); <code>/healthz</code> stays up.</li>
+      </ul>
+      <!-- pager --><div class="doc-pager">
+        <a href="getting-started.html"><span class="dir">← Previous</span><span class="ttl">Getting started</span></a>
+        <a class="next" href="faq.html"><span class="dir">Next →</span><span class="ttl">FAQ</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

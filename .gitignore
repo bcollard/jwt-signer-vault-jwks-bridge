@@ -1,0 +1,8 @@
+/bin/
+/dist/
+/.third_party_licenses/
+/test/e2e/.work/
+*.test
+coverage.out
+.envrc
+/.claude/settings.local.json

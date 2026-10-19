@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "jwks-bridge.fullname" . }}
+  labels:
+    {{- include "jwks-bridge.labels" . | nindent 4 }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    {{- include "jwks-bridge.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: public
+      port: {{ .Values.service.publicPort }}
+      targetPort: public
+    {{- if .Values.private.enabled }}
+    - name: private
+      port: {{ .Values.private.port }}
+      targetPort: private
+    {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "jwks-bridge.fullname" . }}-admin
+  labels:
+    {{- include "jwks-bridge.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "jwks-bridge.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: admin
+      port: {{ .Values.admin.port }}
+      targetPort: admin

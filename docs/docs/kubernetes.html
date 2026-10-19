@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>Deploy jwks-bridge on Kubernetes with Helm</title>
+<meta name="description" content="Install the jwks-bridge Helm chart from GHCR: replicas, PodDisruptionBudget, TLS and mTLS secrets, Vault Kubernetes auth, NetworkPolicy and Prometheus ServiceMonitor.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/kubernetes.html">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/kubernetes.html">
+<meta property="og:title" content="Deploy jwks-bridge on Kubernetes with Helm">
+<meta property="og:description" content="Install the jwks-bridge Helm chart from GHCR: replicas, PodDisruptionBudget, TLS and mTLS secrets, Vault Kubernetes auth, NetworkPolicy and Prometheus ServiceMonitor.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="../mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../styles.css">
+<script type="application/ld+json">
+{
+ "@context": "https://schema.org",
+ "@type": "TechArticle",
+ "headline": "Deploy jwks-bridge on Kubernetes with Helm",
+ "description": "Install the jwks-bridge Helm chart from GHCR: replicas, PodDisruptionBudget, TLS and mTLS secrets, Vault Kubernetes auth, NetworkPolicy and Prometheus ServiceMonitor.",
+ "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/docs/kubernetes.html",
+ "isPartOf": {
+  "@type": "WebSite",
+  "name": "jwks-bridge",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/"
+ },
+ "author": {
+  "@type": "Person",
+  "name": "Baptiste Collard",
+  "url": "https://github.com/bcollard"
+ }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="../" aria-label="jwks-bridge home">
+    <img src="../mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-search">
+    <input type="search" id="docsSearch" placeholder="Search docs…" aria-label="Search documentation" autocomplete="off">
+    <kbd class="nav-search-kbd">⌘K</kbd>
+    <ul class="docs-search-results" id="docsSearchResults" hidden></ul>
+  </div>
+  <div class="nav-right">
+    <a class="nav-home" href="../">Home</a>
+    <a class="nav-docs" href="../docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<div class="docs-shell">
+  <!-- sidebar --><details class="docs-sidebar" id="docsSidebar">
+    <summary>Documentation menu</summary>
+    <div class="docs-nav-inner">
+      <div class="docs-nav-group">
+        <h5>Introduction</h5>
+        <ul class="docs-nav">
+          <li><a href="./">Overview</a></li>
+          <li><a href="getting-started.html">Getting started</a></li>
+          <li><a href="how-it-works.html">How it works</a></li>
+          <li><a href="faq.html">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Kong</h5>
+        <ul class="docs-nav">
+          <li><a href="kong-hybrid.html">jwt-signer in hybrid mode</a></li>
+          <li><a href="key-rotation.html">Key rotation</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Operations</h5>
+        <ul class="docs-nav">
+          <li><a href="vault.html">Vault setup</a></li>
+          <li><a href="kubernetes.html" class="active" aria-current="page">Kubernetes and Helm</a></li>
+          <li><a href="observability.html">Metrics and tracing</a></li>
+          <li><a href="security.html">Security</a></li>
+          <li><a href="testing.html">End-to-end tests</a></li>
+        </ul>
+      </div>
+      <div class="docs-nav-group">
+        <h5>Reference</h5>
+        <ul class="docs-nav">
+          <li><a href="configuration.html">Configuration</a></li>
+          <li><a href="keyset-format.html">Keyset format</a></li>
+          <li><a href="http-api.html">HTTP API</a></li>
+          <li><a href="cli-reference.html">CLI reference</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+        </ul>
+      </div>
+    </div>
+  </details><!-- /sidebar -->
+
+  <main class="docs-main">
+    <article class="docs-prose">
+      <!-- breadcrumb --><p class="breadcrumb"><a href="../">Home</a> › <a href="./">Docs</a> › Kubernetes and Helm</p><!-- /breadcrumb -->
+      <h1>Kubernetes and Helm</h1>
+      <p class="lead">The chart is published as an OCI artifact at <code>oci://ghcr.io/bcollard/charts/jwks-bridge</code>.</p>
+
+      <h2 id="install">Install</h2>
+<pre><code>helm install jwks-bridge oci://ghcr.io/bcollard/charts/jwks-bridge \
+  -n jwks --create-namespace -f values.yaml</code></pre>
+      <p><code>examples/kubernetes/values.yaml</code> is a production-style starting point with mTLS, NetworkPolicy, ServiceMonitor and OTLP export, and <code>examples/kubernetes/certificate.yaml</code> issues the server certificate with cert-manager.</p>
+
+      <h2 id="values">Main values</h2>
+      <table class="docs-table">
+        <thead><tr><th>Value</th><th>Default</th><th>Description</th></tr></thead>
+        <tbody>
+          <tr><td><code>replicaCount</code></td><td><code>2</code></td><td>Replicas cache independently; run two or more.</td></tr>
+          <tr><td><code>keysets</code></td><td><code>default: secret/jwks-bridge/default</code></td><td>Keyset name to Vault path.</td></tr>
+          <tr><td><code>vault.address</code></td><td></td><td>Required with <code>source: vault</code>.</td></tr>
+          <tr><td><code>vault.auth</code></td><td><code>kubernetes</code></td><td><code>kubernetes</code>, <code>approle</code> or <code>token</code>.</td></tr>
+          <tr><td><code>vault.caSecret</code></td><td></td><td>Secret with <code>ca.crt</code> for the Vault server certificate.</td></tr>
+          <tr><td><code>private.tls.secretName</code></td><td></td><td>Required. <code>kubernetes.io/tls</code> Secret for the private listener. Reloaded from disk when it changes.</td></tr>
+          <tr><td><code>private.mtls.caSecret</code></td><td></td><td>Enables mTLS; Secret with <code>ca.crt</code>.</td></tr>
+          <tr><td><code>private.mtls.allowedSANs</code></td><td><code>[]</code></td><td>Client SAN or CN allowlist.</td></tr>
+          <tr><td><code>private.basicAuth.secretName</code></td><td></td><td>Enables Basic auth; Secret with <code>username</code> and <code>password</code>.</td></tr>
+          <tr><td><code>config.*</code></td><td></td><td><code>refreshInterval</code>, <code>maxStale</code>, <code>jwksMaxAge</code>, <code>minStageDuration</code>, <code>logLevel</code>, <code>logFormat</code>.</td></tr>
+          <tr><td><code>extraEnv</code></td><td><code>[]</code></td><td>For example <code>OTEL_EXPORTER_OTLP_ENDPOINT</code>.</td></tr>
+          <tr><td><code>networkPolicy.enabled</code></td><td><code>false</code></td><td>Restricts each listener to the configured peers.</td></tr>
+          <tr><td><code>serviceMonitor.enabled</code></td><td><code>false</code></td><td>Prometheus Operator scrape config for the admin port.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="services">Services</h2>
+      <p>The chart creates <code>jwks-bridge</code> (public <code>8080</code>, private <code>8443</code>) and <code>jwks-bridge-admin</code> (metrics <code>9090</code>). Probes use <code>/readyz</code> and <code>/healthz</code> on the admin port.</p>
+
+      <h2 id="hardening">Pod hardening</h2>
+      <p>Distroless static image, non-root UID 65532, read-only root filesystem, all capabilities dropped, <code>RuntimeDefault</code> seccomp, and no service account token mount unless Vault Kubernetes auth needs it.</p>
+      <!-- pager --><div class="doc-pager">
+        <a href="vault.html"><span class="dir">← Previous</span><span class="ttl">Vault setup</span></a>
+        <a class="next" href="observability.html"><span class="dir">Next →</span><span class="ttl">Metrics and tracing</span></a>
+      </div><!-- /pager -->
+    </article>
+  </main>
+</div>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="search-index.js"></script>
+<script src="../site.js"></script>
+</body>
+</html>

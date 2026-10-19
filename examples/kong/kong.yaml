@@ -1,0 +1,50 @@
+# decK configuration for the control plane (Kong Gateway Enterprise, hybrid mode).
+#   deck gateway sync kong.yaml
+_format_version: "3.0"
+
+services:
+  # Public JWKS for backend applications, served through Kong.
+  - name: jwks-bridge-public
+    url: http://jwks-bridge.jwks.svc:8080
+    routes:
+      - name: jwks
+        paths: ["/.well-known/jwks.json"]
+        protocols: ["http", "https"]
+        strip_path: false
+        methods: ["GET"]
+    plugins:
+      - name: proxy-cache
+        config:
+          strategy: memory
+          response_code: [200]
+          content_type: ["application/jwk-set+json"]
+          cache_ttl: 300
+
+  - name: orders-api
+    url: http://orders.backend.svc:8080
+    routes:
+      - name: orders
+        paths: ["/orders"]
+        protocols: ["https"]
+    plugins:
+      - name: jwt-signer
+        config:
+          # Verify the inbound token against the IdP.
+          access_token_jwks_uri: https://idp.example.com/.well-known/jwks.json
+          # Re-sign it with the key served by jwks-bridge.
+          access_token_issuer: https://api.example.com
+          access_token_signing: true
+          access_token_signing_algorithm: RS256
+          access_token_upstream_header: "Authorization:Bearer"
+          # Called by each data plane directly, never through Kong.
+          access_token_keyset: https://jwks-bridge.jwks.svc:8443/keyset?name=default
+          # Each data plane reloads the keyset on this period (seconds).
+          access_token_keyset_rotate_period: 300
+          access_token_endpoints_ssl_verify: true
+          # Basic auth, resolved from the data plane environment by a Kong vault reference.
+          access_token_keyset_client_username: "{vault://env/jwks-bridge-user}"
+          access_token_keyset_client_password: "{vault://env/jwks-bridge-pass}"
+          # mTLS instead of Basic auth: reference a Kong certificate entity.
+          # access_token_keyset_client_certificate:
+          #   id: 4f5a0b5e-2c1d-4a8e-9f1e-0d6c8b7a6e21
+          channel_token_optional: true

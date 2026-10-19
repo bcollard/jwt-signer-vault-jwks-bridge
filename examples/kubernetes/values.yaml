@@ -1,0 +1,46 @@
+# Production-style values: Vault Kubernetes auth, mTLS from Kong data planes,
+# NetworkPolicy, Prometheus ServiceMonitor, OTLP trace export.
+#
+#   helm install jwks-bridge oci://ghcr.io/bcollard/charts/jwks-bridge -n jwks -f values.yaml
+replicaCount: 3
+
+source: vault
+keysets:
+  default: secret/jwks-bridge/default
+
+vault:
+  address: https://vault.example.internal:8200
+  auth: kubernetes
+  role: jwks-bridge
+  caSecret: vault-ca            # key ca.crt
+
+private:
+  enabled: true
+  tls:
+    secretName: jwks-bridge-tls # kubernetes.io/tls, e.g. issued by cert-manager
+  mtls:
+    caSecret: kong-dp-client-ca # key ca.crt: CA that issued the data plane client certificates
+    allowedSANs:
+      - kong-dp.kong.svc
+
+networkPolicy:
+  enabled: true
+
+serviceMonitor:
+  enabled: true
+
+extraEnv:
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: http://otel-collector.observability:4318
+  - name: OTEL_TRACES_SAMPLER
+    value: parentbased_traceidratio
+  - name: OTEL_TRACES_SAMPLER_ARG
+    value: "0.1"
+
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: topology.kubernetes.io/zone
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: jwks-bridge

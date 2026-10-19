@@ -1,0 +1,21 @@
+version: "2"
+linters:
+  enable:
+    - errorlint
+    - gosec
+    - misspell
+    - unconvert
+  settings:
+    errcheck:
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - (io.Closer).Close
+        - (*net/http.Server).Close
+    gosec:
+      excludes:
+        - G304 # file paths come from operator configuration
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters: [gosec]

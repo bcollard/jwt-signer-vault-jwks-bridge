@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4.2.2
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5.3.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Collect third-party licenses
+        run: |
+          go install github.com/google/go-licenses@latest
+          go-licenses save ./cmd/jwks-bridge \
+            --save_path=.third_party_licenses \
+            --ignore github.com/bcollard/jwt-signer-vault-jwks-bridge \
+            --force
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6.3.0
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
+
+      - name: Publish Helm chart to GHCR
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u "${{ github.actor }}" --password-stdin
+          helm package deploy/helm/jwks-bridge --version "$VERSION" --app-version "$VERSION" -d dist/chart
+          helm push "dist/chart/jwks-bridge-$VERSION.tgz" oci://ghcr.io/bcollard/charts

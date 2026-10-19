@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var t=localStorage.getItem('jwksb-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+
+<title>jwks-bridge – HashiCorp Vault keys for the Kong jwt-signer plugin</title>
+<meta name="description" content="jwks-bridge serves signing keys stored in HashiCorp Vault to the Kong Gateway Enterprise jwt-signer plugin and publishes a public JWKS for backends. Works in hybrid mode and Konnect, with staged key rotation, Prometheus metrics and W3C tracing.">
+<link rel="canonical" href="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="jwks-bridge">
+<meta property="og:url" content="https://bcollard.github.io/jwt-signer-vault-jwks-bridge/">
+<meta property="og:title" content="jwks-bridge – HashiCorp Vault keys for the Kong jwt-signer plugin">
+<meta property="og:description" content="Sign tokens with a Vault-stored key on every Kong data plane, and publish the public JWKS through Kong for backends.">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#f7f8fc" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1118" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "jwks-bridge",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Linux, macOS, Kubernetes",
+  "url": "https://bcollard.github.io/jwt-signer-vault-jwks-bridge/",
+  "downloadUrl": "https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest",
+  "description": "A stateless service that reads JWT signing key pairs from HashiCorp Vault and serves them as a private keyset for the Kong Gateway Enterprise jwt-signer plugin and as a public JWKS for backend applications.",
+  "license": "https://opensource.org/licenses/MIT",
+  "codeRepository": "https://github.com/bcollard/jwt-signer-vault-jwks-bridge",
+  "featureList": [
+    "HashiCorp Vault KV v2 source with Kubernetes, AppRole or token auth",
+    "Private keyset for the Kong jwt-signer access_token_keyset URL",
+    "Public JWKS without private members, routed through Kong",
+    "Same signing key on every hybrid mode data plane",
+    "Staged key rotation with a staging guard",
+    "Stale-if-error caching during Vault outages",
+    "mTLS or Basic auth for data planes",
+    "Prometheus metrics",
+    "OpenTelemetry tracing with W3C trace context propagation",
+    "Helm chart"
+  ],
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Person", "name": "Baptiste Collard", "url": "https://github.com/bcollard" }
+}
+</script>
+</head>
+<body>
+
+<!-- nav --><nav class="nav">
+  <a class="brand" href="./" aria-label="jwks-bridge home">
+    <img src="mark.svg" width="28" height="28" alt="">
+    <strong>jwks-bridge</strong>
+  </a>
+  <div class="nav-right">
+    <a class="nav-home" href="./">Home</a>
+    <a class="nav-docs" href="docs/">Docs</a>
+    <a class="nav-github" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">GitHub</a>
+    <a class="nav-version" id="navVersion" href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest" title="Latest release">v0.1.0</a>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle colour theme"><span class="sun">☀</span><span class="moon">☾</span><span class="auto">◐</span></button>
+  </div>
+</nav><!-- /nav -->
+
+<header class="hero">
+  <div class="container">
+    <img class="mark" src="mark.svg" width="72" height="72" alt="">
+    <h1>jwks-bridge</h1>
+    <p class="lede">Sign tokens with a key stored in HashiCorp Vault on every Kong data plane, and publish the public JWKS through Kong for your backends.</p>
+    <div class="cta">
+      <a class="btn btn-primary" href="docs/getting-started.html">Get started</a>
+      <a class="btn btn-ghost" href="docs/">Documentation</a>
+    </div>
+    <p class="note">Free and MIT licensed. For the Kong Gateway Enterprise jwt-signer plugin, in hybrid mode or Konnect.</p>
+  </div>
+</header>
+
+<section class="home-section" id="install">
+  <div class="container">
+    <h2>Install</h2>
+    <p class="sub">With Homebrew, the container image <code>ghcr.io/bcollard/jwks-bridge</code>, or the Helm chart <code>oci://ghcr.io/bcollard/charts/jwks-bridge</code>.</p>
+    <div class="install-box">
+      <button class="copy-btn" type="button" data-copy="brew tap bcollard/jwks-bridge && brew install --cask jwks-bridge">Copy</button>
+<pre><code><span class="p">$</span> brew tap bcollard/jwks-bridge
+<span class="p">$</span> brew install --cask jwks-bridge</code></pre>
+    </div>
+  </div>
+</section>
+
+<section class="home-section">
+  <div class="container">
+    <h2>Two documents from one Vault secret</h2>
+    <p class="sub">Data planes load the private keyset directly from the bridge. Backends fetch the public JWKS through a Kong Route.</p>
+    <div class="tiers">
+      <div class="tier"><b>Vault KV v2</b><code>secret/jwks-bridge/default</code></div>
+      <div class="tier"><b>Keyset for jwt-signer</b><code>https://jwks-bridge:8443/keyset</code></div>
+      <div class="tier"><b>Public JWKS</b><code>https://kong/.well-known/jwks.json</code></div>
+      <div class="tier"><b>Metrics</b><code>http://jwks-bridge:9090/metrics</code></div>
+    </div>
+  </div>
+</section>
+
+<section class="home-section">
+  <div class="container">
+    <div class="feature-grid">
+      <a class="feature" href="docs/kong-hybrid.html">
+        <h3>Hybrid mode and Konnect</h3>
+        <p>Every data plane signs with the same key, without a database on the data plane.</p>
+      </a>
+      <a class="feature" href="docs/key-rotation.html">
+        <h3>Staged rotation</h3>
+        <p>Stage, promote, retire, remove. Verified end to end with no failed verification under load.</p>
+      </a>
+      <a class="feature" href="docs/how-it-works.html#caching">
+        <h3>Survives Vault outages</h3>
+        <p>In-memory snapshots keep serving the last good keyset; readiness reports staleness.</p>
+      </a>
+      <a class="feature" href="docs/security.html">
+        <h3>Private keys stay private</h3>
+        <p>Separate TLS listener, mTLS or Basic auth, strict validation of every Vault write.</p>
+      </a>
+      <a class="feature" href="docs/observability.html">
+        <h3>Metrics and tracing</h3>
+        <p>Prometheus metrics, and OpenTelemetry spans that continue the W3C trace context from Kong to Vault.</p>
+      </a>
+      <a class="feature" href="docs/kubernetes.html">
+        <h3>Helm chart</h3>
+        <p>Replicas, PodDisruptionBudget, NetworkPolicy, ServiceMonitor and a hardened distroless image.</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- footer --><footer class="footer">
+  <div class="container">
+    <p>MIT licensed · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge">Source</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases">Releases</a> · <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/issues">Issues</a> · Built by <a href="https://github.com/bcollard">Baptiste Collard</a></p>
+  </div>
+</footer><!-- /footer -->
+
+<script src="site.js"></script>
+</body>
+</html>
