@@ -2,7 +2,7 @@
 # End-to-end test: Vault, jwks-bridge and Kong Gateway Enterprise in hybrid mode
 # (one control plane, two data planes) on a Kubernetes cluster.
 #
-# Usage: test/e2e/run.sh [all|up|configure|test|down]   (default: all)
+# Usage: test/e2e/run.sh [all|up|o11y|configure|test|down]   (default: all)
 #   configure  apply the Kong configuration only (used by demo.sh)
 #
 # Environment:
@@ -13,6 +13,13 @@
 #   E2E_LOAD_IMAGE      command that loads $E2E_IMAGE into the cluster
 #                       (default: kind load docker-image $E2E_IMAGE --name $E2E_CLUSTER)
 #   E2E_KEEP            set to 1 to keep the cluster after "all"
+#
+# "o11y" installs an OpenTelemetry Collector that forwards traces, metrics and
+# logs to an existing backend, and turns on tracing in the bridge and Kong:
+#   E2E_O11Y_JAEGER       Jaeger host (OTLP/HTTP on 4318)
+#   E2E_O11Y_PROMETHEUS   Prometheus host (remote write receiver on 9090)
+#   E2E_O11Y_LOKI         Loki 3 host (OTLP on 3100)
+#   E2E_O11Y_CLUSTER      cluster label on the exported data (default: $CTX)
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -124,9 +131,40 @@ deploy_kong() {
     -n kong -f "$HERE/values/kong-dp.yaml" --wait --timeout 6m
 }
 
+o11y() {
+  : "${E2E_O11Y_JAEGER:?}" "${E2E_O11Y_PROMETHEUS:?}" "${E2E_O11Y_LOKI:?}"
+  log "Installing the OpenTelemetry Collector"
+  k create namespace observability --dry-run=client -o yaml | k apply -f -
+  k -n observability create configmap o11y-endpoints \
+    --from-literal=cluster="${E2E_O11Y_CLUSTER:-$CTX}" --from-literal=jaeger="$E2E_O11Y_JAEGER" \
+    --from-literal=prometheus="$E2E_O11Y_PROMETHEUS" --from-literal=loki="$E2E_O11Y_LOKI" \
+    --dry-run=client -o yaml | k apply -f -
+  helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts >/dev/null 2>&1 || true
+  helm repo update open-telemetry >/dev/null
+  helm --kube-context "$CTX" upgrade --install otel-collector open-telemetry/opentelemetry-collector \
+    -n observability -f "$HERE/o11y/collector-values.yaml" --wait --timeout 5m
+  k -n observability rollout restart ds/otel-collector-agent >/dev/null # pick up a changed ConfigMap
+  k -n observability rollout status ds/otel-collector-agent --timeout=120s
+
+  log "Exporting jwks-bridge traces to the collector"
+  helm --kube-context "$CTX" upgrade jwks-bridge "$ROOT/deploy/helm/jwks-bridge" -n jwks \
+    -f "$HERE/values/jwks-bridge.yaml" -f "$HERE/o11y/jwks-bridge-otel.yaml" --wait --timeout 3m
+
+  log "Applying the Kong data plane tracing settings"
+  helm repo add kong https://charts.konghq.com >/dev/null 2>&1 || true
+  helm --kube-context "$CTX" upgrade --install kong-dp kong/kong --version "$KONG_CHART_VERSION" \
+    -n kong -f "$HERE/values/kong-dp.yaml" --wait --timeout 6m
+
+  log "Enabling the Kong opentelemetry and prometheus plugins"
+  trap stop_port_forwards EXIT
+  port_forward kong svc/kong-cp-kong-admin 18001 8001
+  configure_kong
+}
+
 PF_PIDS=()
 port_forward() { # name target local remote
-  k -n "$1" port-forward "$2" "$3:$4" >/dev/null 2>&1 &
+  # kubectl itself, not the k function: $! must be the process to kill
+  kubectl --context "$CTX" -n "$1" port-forward "$2" "$3:$4" >/dev/null 2>&1 &
   PF_PIDS+=($!)
 }
 stop_port_forwards() {
@@ -154,6 +192,13 @@ configure_kong() {
     '{"paths":["/.well-known/jwks.json"],"strip_path":false,"methods":["GET"],"protocols":["http","https"]}'
   put services/jwks-bridge-public/plugins/00000000-0000-4000-8000-000000000001 \
     '{"name":"proxy-cache","config":{"strategy":"memory","response_code":[200],"content_type":["application/jwk-set+json"],"cache_ttl":5}}'
+
+  put plugins/00000000-0000-4000-8000-000000000010 \
+    '{"name":"prometheus","config":{"status_code_metrics":true,"latency_metrics":true,"bandwidth_metrics":true,"upstream_health_metrics":true}}'
+  if k -n observability get svc otel-collector >/dev/null 2>&1; then
+    put plugins/00000000-0000-4000-8000-000000000011 \
+      '{"name":"opentelemetry","config":{"traces_endpoint":"http://otel-collector.observability.svc:4318/v1/traces","resource_attributes":{"service.name":"kong-dp"},"propagation":{"default_format":"w3c"}}}'
+  fi
 
   put services/echo '{"url":"http://httpbin.backend.svc:8080/headers"}'
   put services/echo/routes/echo '{"paths":["/echo"],"protocols":["http","https"]}'
@@ -224,6 +269,7 @@ down() {
 
 case "${1:-all}" in
   up) up ;;
+  o11y) o11y ;;
   configure)
     trap stop_port_forwards EXIT
     port_forward kong svc/kong-cp-kong-admin 18001 8001
@@ -238,5 +284,5 @@ case "${1:-all}" in
     if [[ "${E2E_KEEP:-0}" != "1" ]]; then down; fi
     exit $status
     ;;
-  *) echo "usage: $0 [all|up|configure|test|down]" >&2; exit 2 ;;
+  *) echo "usage: $0 [all|up|o11y|configure|test|down]" >&2; exit 2 ;;
 esac

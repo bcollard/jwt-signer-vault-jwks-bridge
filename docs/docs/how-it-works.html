@@ -109,7 +109,10 @@
       <p class="lead">The plugin behaviour that makes an external keyset necessary, and the request paths through Kong.</p>
 
       <h2 id="architecture">Architecture</h2>
-      <p><img src="../kong-jwt-signer-hybrid-sequence.svg" alt="Sequence diagram: data planes load the keyset from jwks-bridge, backends fetch the public JWKS through Kong, operators rotate keys in Vault" style="width:100%;height:auto"></p>
+      <figure class="zoom-figure">
+        <a class="zoomable" href="../kong-jwt-signer-hybrid-sequence.svg" title="Open full screen"><img src="../kong-jwt-signer-hybrid-sequence.svg" alt="Sequence diagram: data planes load the keyset from jwks-bridge, backends fetch the public JWKS through Kong, operators rotate keys in Vault" width="1420" height="1922"></a>
+        <figcaption>Click the diagram to open it full screen. Pinch, ctrl+scroll or the + and − buttons zoom; drag to move.</figcaption>
+      </figure>
       <table class="docs-table">
         <thead><tr><th>Component</th><th>Role</th></tr></thead>
         <tbody>

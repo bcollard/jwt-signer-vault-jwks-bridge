@@ -1,0 +1,107 @@
+# OpenTelemetry Collector for the e2e environment (chart open-telemetry/opentelemetry-collector).
+# Receives OTLP traces from jwks-bridge and Kong, scrapes their Prometheus metrics,
+# tails pod logs, and forwards everything to an existing backend:
+#   traces  -> Jaeger (OTLP/HTTP)
+#   metrics -> Prometheus (remote write receiver enabled)
+#   logs    -> Loki 3 (OTLP)
+# Backend hosts come from the o11y-endpoints ConfigMap that run.sh o11y creates.
+nameOverride: otel-collector
+fullnameOverride: otel-collector
+mode: daemonset
+image:
+  repository: otel/opentelemetry-collector-contrib
+command: { name: otelcol-contrib }
+resources:
+  requests: { cpu: 50m, memory: 128Mi }
+  limits: { memory: 512Mi }
+presets:
+  logsCollection: { enabled: true, includeCollectorLogs: false }
+  kubernetesAttributes: { enabled: true }
+clusterRole:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: [pods]
+      verbs: [get, list, watch]
+service: { enabled: true, type: ClusterIP }
+ports:
+  jaeger-compact: { enabled: false }
+  jaeger-thrift: { enabled: false }
+  jaeger-grpc: { enabled: false }
+  zipkin: { enabled: false }
+extraEnvs:
+  - { name: O11Y_CLUSTER, valueFrom: { configMapKeyRef: { name: o11y-endpoints, key: cluster } } }
+  - { name: O11Y_JAEGER, valueFrom: { configMapKeyRef: { name: o11y-endpoints, key: jaeger } } }
+  - { name: O11Y_PROMETHEUS, valueFrom: { configMapKeyRef: { name: o11y-endpoints, key: prometheus } } }
+  - { name: O11Y_LOKI, valueFrom: { configMapKeyRef: { name: o11y-endpoints, key: loki } } }
+config:
+  receivers:
+    prometheus:
+      config:
+        scrape_configs:
+          # jwks-bridge admin listener, one target per replica
+          - job_name: jwks-bridge
+            scrape_interval: 10s
+            kubernetes_sd_configs: [ { role: pod, namespaces: { names: [jwks] } } ]
+            relabel_configs:
+              - { source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name], regex: jwks-bridge, action: keep }
+              - { source_labels: [__meta_kubernetes_pod_container_port_name], regex: admin, action: keep }
+              - { source_labels: [__meta_kubernetes_pod_name], target_label: pod }
+          # Kong data planes, status listener (prometheus plugin)
+          - job_name: kong-dp
+            scrape_interval: 10s
+            kubernetes_sd_configs: [ { role: pod, namespaces: { names: [kong] } } ]
+            relabel_configs:
+              - { source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_instance], regex: kong-dp, action: keep }
+              - { source_labels: [__meta_kubernetes_pod_container_port_name], regex: status, action: keep }
+              - { source_labels: [__meta_kubernetes_pod_name], target_label: pod }
+  processors:
+    memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 25 }
+    batch: {}
+    resource/cluster:
+      attributes:
+        - { key: k8s.cluster.name, value: "${env:O11Y_CLUSTER}", action: upsert }
+    # Only the namespaces of the test environment.
+    filter/namespaces:
+      error_mode: ignore
+      logs:
+        log_record:
+          - 'not IsMatch(resource.attributes["k8s.namespace.name"], "^(jwks|kong|vault|backend)$")'
+    # service.name from the container, and trace context from jwks-bridge JSON
+    # logs, so Grafana can jump from a span to its log lines.
+    transform/logs:
+      error_mode: ignore
+      log_statements:
+        - context: resource
+          statements:
+            - set(attributes["service.name"], attributes["k8s.container.name"]) where attributes["service.name"] == nil
+        - context: log
+          statements:
+            - set(cache, ParseJSON(body)) where IsMatch(body, "^\\{")
+            - set(trace_id.string, cache["trace_id"]) where cache["trace_id"] != nil
+            - set(span_id.string, cache["span_id"]) where cache["span_id"] != nil
+            - set(severity_text, cache["level"]) where cache["level"] != nil
+  exporters:
+    otlp_http/jaeger:
+      endpoint: http://${env:O11Y_JAEGER}:4318
+      tls: { insecure: true }
+    prometheus_remote_write:
+      endpoint: http://${env:O11Y_PROMETHEUS}:9090/api/v1/write
+      external_labels: { cluster: "${env:O11Y_CLUSTER}" }
+    otlp_http/loki:
+      endpoint: http://${env:O11Y_LOKI}:3100/otlp
+      tls: { insecure: true }
+  service:
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, resource/cluster, batch]
+        exporters: [otlp_http/jaeger]
+      metrics:
+        receivers: [otlp, prometheus]
+        processors: [memory_limiter, batch]
+        exporters: [prometheus_remote_write]
+      logs:
+        receivers: [otlp]  # the logsCollection preset adds file_log
+        processors: [memory_limiter, filter/namespaces, transform/logs, resource/cluster, batch]
+        exporters: [otlp_http/loki]

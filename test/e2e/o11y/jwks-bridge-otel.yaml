@@ -1,0 +1,8 @@
+# Applied on top of values/jwks-bridge.yaml by run.sh o11y: export traces to the collector.
+extraEnv:
+  - name: OTEL_EXPORTER_OTLP_ENDPOINT
+    value: http://otel-collector.observability.svc:4318
+  - name: OTEL_EXPORTER_OTLP_PROTOCOL
+    value: http/protobuf
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: deployment.environment=e2e

@@ -196,6 +196,9 @@ func TestReadyAndMetrics(t *testing.T) {
 	for _, want := range []string{
 		`jwksbridge_requests_total{code="200",endpoint="jwks"} 1`,
 		`jwksbridge_keys{keyset="default",status="active"} 1`,
+		`jwksbridge_key_info{keyset="default",kid="k2",signing="true",status="active"} 1`,
+		`jwksbridge_key_info{keyset="default",kid="k1",signing="false",status="retired"} 1`,
+		`jwksbridge_key_info{keyset="default",kid="k3",signing="false",status="staged"} 1`,
 		`jwksbridge_refresh_total{keyset="missing",result="error"} 1`,
 		`jwksbridge_snapshot_age_seconds{keyset="default"}`,
 		`jwksbridge_source_errors_total{source="file"} 1`,

@@ -152,3 +152,124 @@
     });
   });
 })();
+
+/* full-screen viewer for <a class="zoomable" href="image"><img></a>.
+   Pinch or ctrl+wheel zooms around the pointer, scroll or drag pans, +/-/0 keys, Esc closes.
+   The image is resized (not CSS-scaled) so SVGs stay sharp at any zoom. */
+(function () {
+  var links = document.querySelectorAll('a.zoomable');
+  if (!links.length) return;
+  var viewer = document.createElement('div');
+  viewer.className = 'zoom-viewer';
+  viewer.hidden = true;
+  viewer.setAttribute('role', 'dialog');
+  viewer.setAttribute('aria-modal', 'true');
+  viewer.innerHTML = '<div class="zoom-bar"><span class="zoom-level"></span>' +
+    '<button type="button" data-z="out" aria-label="Zoom out">\u2212</button>' +
+    '<button type="button" data-z="fit" aria-label="Fit to screen">Fit</button>' +
+    '<button type="button" data-z="in" aria-label="Zoom in">+</button>' +
+    '<button type="button" data-z="close" aria-label="Close">\u2715</button></div>' +
+    '<div class="zoom-stage"><img alt=""></div>';
+  document.body.appendChild(viewer);
+  var stage = viewer.querySelector('.zoom-stage');
+  var img = stage.querySelector('img');
+  var level = viewer.querySelector('.zoom-level');
+  var natW = 1, natH = 1, fit = 1, scale = 1, opener = null;
+
+  function apply(next, cx, cy) {
+    next = Math.min(Math.max(next, fit * 0.5), 8);
+    // keep the point under (cx, cy) in place
+    var r = stage.getBoundingClientRect();
+    cx = cx === undefined ? r.width / 2 : cx - r.left;
+    cy = cy === undefined ? r.height / 2 : cy - r.top;
+    var fx = (stage.scrollLeft + cx) / (natW * scale), fy = (stage.scrollTop + cy) / (natH * scale);
+    scale = next;
+    img.style.width = Math.round(natW * scale) + 'px';
+    img.style.height = Math.round(natH * scale) + 'px';
+    stage.scrollLeft = fx * natW * scale - cx;
+    stage.scrollTop = fy * natH * scale - cy;
+    level.textContent = Math.round(scale * 100) + '%';
+  }
+  function fitScale() {
+    var r = stage.getBoundingClientRect();
+    return Math.min((r.width - 32) / natW, (r.height - 24) / natH);
+  }
+  function open(href, alt, a) {
+    opener = a;
+    img.alt = alt || '';
+    viewer.hidden = false;
+    document.documentElement.style.overflow = 'hidden';
+    img.onload = function () {
+      natW = img.naturalWidth || 1200; natH = img.naturalHeight || 800;
+      fit = fitScale(); scale = fit; apply(fit);
+    };
+    img.src = href;
+    viewer.querySelector('[data-z="close"]').focus();
+  }
+  function close() {
+    viewer.hidden = true;
+    document.documentElement.style.overflow = '';
+    if (opener) opener.focus();
+  }
+  links.forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      if (e.metaKey || e.ctrlKey || e.shiftKey) return; // let new-tab clicks through
+      e.preventDefault();
+      var i = a.querySelector('img');
+      open(a.getAttribute('href'), i && i.alt, a);
+    });
+  });
+  viewer.addEventListener('click', function (e) {
+    var z = e.target.getAttribute && e.target.getAttribute('data-z');
+    if (z === 'in') apply(scale * 1.25);
+    else if (z === 'out') apply(scale / 1.25);
+    else if (z === 'fit') apply(fit);
+    else if (z === 'close' || e.target === stage) close();
+  });
+  // trackpad pinch arrives as ctrl+wheel; plain scrolling pans natively
+  stage.addEventListener('wheel', function (e) {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    apply(scale * Math.exp(-e.deltaY * 0.01), e.clientX, e.clientY);
+  }, { passive: false });
+  document.addEventListener('keydown', function (e) {
+    if (viewer.hidden) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === '+' || e.key === '=') apply(scale * 1.25);
+    else if (e.key === '-') apply(scale / 1.25);
+    else if (e.key === '0') apply(fit);
+  });
+  window.addEventListener('resize', function () { if (!viewer.hidden) fit = fitScale(); });
+
+  // drag to pan with one pointer, pinch to zoom with two
+  var pts = {}, last = null, pinch = 0, moved = false;
+  stage.addEventListener('pointerdown', function (e) {
+    pts[e.pointerId] = e; stage.setPointerCapture(e.pointerId);
+    stage.classList.add('dragging'); last = e; moved = false;
+  });
+  stage.addEventListener('pointermove', function (e) {
+    if (!pts[e.pointerId]) return;
+    pts[e.pointerId] = e;
+    var ids = Object.keys(pts);
+    if (ids.length === 2) {
+      var a = pts[ids[0]], b = pts[ids[1]];
+      var d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      if (pinch) apply(scale * d / pinch, (a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+      pinch = d; moved = true;
+    } else if (last) {
+      stage.scrollLeft -= e.clientX - last.clientX;
+      stage.scrollTop -= e.clientY - last.clientY;
+      if (Math.abs(e.clientX - last.clientX) + Math.abs(e.clientY - last.clientY) > 0) moved = true;
+      last = e;
+    }
+  });
+  function up(e) {
+    delete pts[e.pointerId];
+    if (Object.keys(pts).length < 2) pinch = 0;
+    if (!Object.keys(pts).length) { stage.classList.remove('dragging'); last = null; }
+  }
+  stage.addEventListener('pointerup', up);
+  stage.addEventListener('pointercancel', up);
+  // a click on the backdrop closes, but not the end of a drag
+  stage.addEventListener('click', function (e) { if (moved) e.stopPropagation(); }, true);
+})();

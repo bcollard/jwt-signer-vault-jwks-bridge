@@ -364,6 +364,13 @@ window.JWKSB_DOCS_INDEX = [
   "text": "W3C trace context"
  },
  {
+  "page": "observability.html",
+  "anchor": "dashboard",
+  "title": "Metrics and tracing",
+  "section": "",
+  "text": "Grafana dashboard"
+ },
+ {
   "page": "security.html",
   "anchor": "",
   "title": "Security",
@@ -425,6 +432,13 @@ window.JWKSB_DOCS_INDEX = [
   "title": "End-to-end tests",
   "section": "",
   "text": "Guided demo"
+ },
+ {
+  "page": "testing.html",
+  "anchor": "observability",
+  "title": "End-to-end tests",
+  "section": "",
+  "text": "Telemetry to an existing backend"
  },
  {
   "page": "testing.html",

@@ -9,10 +9,12 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"sort"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -240,6 +242,14 @@ func (c *Cache) observe(s *Snapshot) {
 	}
 	for _, st := range []keyset.Status{keyset.StatusStaged, keyset.StatusActive, keyset.StatusRetired} {
 		m.Keys.WithLabelValues(s.Name, string(st)).Set(float64(s.Counts[st]))
+	}
+	m.KeyInfo.DeletePartialMatch(prometheus.Labels{"keyset": s.Name})
+	signing := ""
+	if len(s.PrivateKids) > 0 {
+		signing = s.PrivateKids[0]
+	}
+	for _, e := range s.doc.Keys {
+		m.KeyInfo.WithLabelValues(s.Name, e.Kid, string(e.Status), strconv.FormatBool(e.Kid == signing)).Set(1)
 	}
 }
 

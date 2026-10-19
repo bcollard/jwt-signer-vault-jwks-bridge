@@ -48,7 +48,8 @@ cleanup() {
 }
 trap cleanup EXIT
 port_forward() { # namespace target local remote
-  k -n "$1" port-forward "$2" "$3:$4" >/dev/null 2>&1 &
+  # kubectl itself, not the k function: $! must be the process to kill
+  kubectl --context "$CTX" -n "$1" port-forward "$2" "$3:$4" >/dev/null 2>&1 &
   PF_PIDS+=($!)
 }
 
@@ -103,7 +104,8 @@ port_forward kong "pod/${dps%% *}" 18101 8000
 port_forward kong "pod/${dps##* }" 18102 8000
 E2E_KUBE_CONTEXT="$CTX" "$HERE/run.sh" configure >/dev/null
 for url in "$VAULT_ADDR/v1/sys/health" "$DP1/.well-known/jwks.json" "$DP2/.well-known/jwks.json" http://127.0.0.1:18090/readyz; do
-  until curl -sf -o /dev/null "$url"; do sleep 1; done
+  for i in $(seq 1 60); do curl -sf -o /dev/null "$url" && break; sleep 1; done
+  ((i < 60)) || { echo "no answer from $url; is the port already in use?" >&2; exit 1; }
 done
 INBOUND=$(inbound_token)
 

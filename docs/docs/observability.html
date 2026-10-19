@@ -116,6 +116,7 @@
           <tr><td><code>jwksbridge_snapshot_age_seconds</code></td><td><code>keyset</code></td><td>Seconds since the source last confirmed the keyset.</td></tr>
           <tr><td><code>jwksbridge_refresh_total</code></td><td><code>keyset</code>, <code>result</code></td><td>Refreshes: <code>updated</code>, <code>unchanged</code>, <code>error</code>, <code>invalid</code>.</td></tr>
           <tr><td><code>jwksbridge_keys</code></td><td><code>keyset</code>, <code>status</code></td><td>Keys in the served snapshot per status.</td></tr>
+          <tr><td><code>jwksbridge_key_info</code></td><td><code>keyset</code>, <code>kid</code>, <code>status</code>, <code>signing</code></td><td>One series per key, value 1. <code>signing="true"</code> marks the key Kong signs with, which differs from the active key while the staging guard holds.</td></tr>
           <tr><td><code>jwksbridge_requests_total</code></td><td><code>endpoint</code>, <code>code</code></td><td>Requests to <code>jwks</code> and <code>keyset</code>.</td></tr>
           <tr><td><code>jwksbridge_request_duration_seconds</code></td><td><code>endpoint</code></td><td>Request latency histogram.</td></tr>
           <tr><td><code>jwksbridge_source_errors_total</code></td><td><code>source</code></td><td>Errors returned by Vault or the file source.</td></tr>
@@ -144,6 +145,22 @@
 <span class="t-v">OTEL_TRACES_SAMPLER_ARG</span>=0.1
 <span class="t-v">OTEL_SERVICE_NAME</span>=jwks-bridge</code></pre>
       <p>Without them, propagation still works and nothing is exported. With <code>JWKSB_LOG_LEVEL=debug</code>, access log lines include <code>trace_id</code> and <code>span_id</code>.</p>
+      <p>Kong's <code>jwt-signer</code> plugin fetches the keyset from a background timer and sends no <code>traceparent</code>, so <code>GET /keyset</code> spans start a new trace. Requests that Kong proxies to the bridge, such as the public JWKS route, join the client's trace.</p>
+
+      <h2 id="dashboard">Grafana dashboard</h2>
+      <p>The repository ships a dashboard in <code>deploy/grafana/jwks-bridge.json</code>. It picks the Prometheus, Loki and Jaeger datasources through variables, so it imports into any Grafana. Panels:</p>
+      <ul>
+        <li>Signing kid, keys per status, snapshot age and source errors.</li>
+        <li>Key lifecycle: one bar per kid, colored staged, active (held back by the staging guard), signing or retired.</li>
+        <li>Kong data planes: requests per pod, failed requests and latency, from the Kong <code>prometheus</code> plugin.</li>
+        <li>Bridge requests, latency and refresh results.</li>
+        <li>Links to the Jaeger UI searches (set the <code>jaeger_ui</code> variable to its address), and the bridge logs from Loki with a <code>keyset loaded</code> annotation on every rotation.</li>
+      </ul>
+      <p>Import it through the Grafana API, or copy it into a dashboard provider directory:</p>
+<pre><code class="language-bash"><span class="t-cmd">jq</span> <span class="t-s">'{dashboard: (. + {id: null}), overwrite: true}'</span> deploy/grafana/jwks-bridge.json <span class="t-p">\</span>
+  <span class="t-p">|</span> <span class="t-cmd">curl</span> <span class="t-f">-u</span> admin:<span class="t-s">"$GRAFANA_PASSWORD"</span> <span class="t-f">-H</span> <span class="t-s">'Content-Type: application/json'</span> <span class="t-p">\</span>
+      <span class="t-f">-X</span> POST <span class="t-s">"$GRAFANA_URL/api/dashboards/db"</span> <span class="t-f">-d</span> @-</code></pre>
+      <p>The <code>cluster</code> variable reads the <code>cluster</code> label from <code>jwksbridge_build_info</code>. Without that label it stays empty and every panel still matches.</p>
       <!-- pager --><div class="doc-pager">
         <a href="kubernetes.html"><span class="dir">← Previous</span><span class="ttl">Kubernetes and Helm</span></a>
         <a class="next" href="security.html"><span class="dir">Next →</span><span class="ttl">Security</span></a>

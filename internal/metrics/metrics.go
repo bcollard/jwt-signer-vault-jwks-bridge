@@ -15,6 +15,7 @@ type Metrics struct {
 	SnapshotAge     *prometheus.GaugeVec
 	RefreshTotal    *prometheus.CounterVec
 	Keys            *prometheus.GaugeVec
+	KeyInfo         *prometheus.GaugeVec
 	RequestsTotal   *prometheus.CounterVec
 	RequestDuration *prometheus.HistogramVec
 	SourceErrors    *prometheus.CounterVec
@@ -38,6 +39,10 @@ func New() *Metrics {
 			Name: "jwksbridge_keys",
 			Help: "Keys in the served snapshot by status.",
 		}, []string{"keyset", "status"}),
+		KeyInfo: prometheus.NewGaugeVec(prometheus.GaugeOpts{
+			Name: "jwksbridge_key_info",
+			Help: "One series per key in the served snapshot; signing is true for the key Kong signs with.",
+		}, []string{"keyset", "kid", "status", "signing"}),
 		RequestsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "jwksbridge_requests_total",
 			Help: "HTTP requests by endpoint and status code.",
@@ -57,7 +62,7 @@ func New() *Metrics {
 		}, []string{"version", "commit"}),
 	}
 	m.Registry.MustRegister(
-		m.SnapshotAge, m.RefreshTotal, m.Keys, m.RequestsTotal, m.RequestDuration, m.SourceErrors, m.BuildInfo,
+		m.SnapshotAge, m.RefreshTotal, m.Keys, m.KeyInfo, m.RequestsTotal, m.RequestDuration, m.SourceErrors, m.BuildInfo,
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
 	)

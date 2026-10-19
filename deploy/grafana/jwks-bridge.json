@@ -1,0 +1,926 @@
+{
+ "uid": "jwks-bridge",
+ "title": "jwks-bridge",
+ "description": "Keyset served to the Kong jwt-signer plugin: signing key, rotation, Kong data planes, bridge health, traces and logs.",
+ "tags": [
+  "jwks-bridge",
+  "kong",
+  "jwt-signer"
+ ],
+ "timezone": "browser",
+ "schemaVersion": 39,
+ "version": 1,
+ "editable": true,
+ "refresh": "5s",
+ "time": {
+  "from": "now-15m",
+  "to": "now"
+ },
+ "templating": {
+  "list": [
+   {
+    "name": "prom",
+    "label": "Prometheus",
+    "type": "datasource",
+    "query": "prometheus",
+    "current": {},
+    "hide": 0,
+    "refresh": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "loki",
+    "label": "Loki",
+    "type": "datasource",
+    "query": "loki",
+    "current": {},
+    "hide": 0,
+    "refresh": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "jaeger",
+    "label": "Jaeger",
+    "type": "datasource",
+    "query": "jaeger",
+    "current": {},
+    "hide": 0,
+    "refresh": 1,
+    "regex": "",
+    "options": []
+   },
+   {
+    "name": "cluster",
+    "label": "Cluster",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${prom}"
+    },
+    "query": {
+     "query": "label_values(jwksbridge_build_info, cluster)",
+     "refId": "v"
+    },
+    "definition": "label_values(jwksbridge_build_info, cluster)",
+    "refresh": 2,
+    "sort": 1,
+    "current": {},
+    "options": [],
+    "hide": 0,
+    "description": "Value of the cluster label, if your metrics carry one."
+   },
+   {
+    "name": "keyset",
+    "label": "Keyset",
+    "type": "query",
+    "datasource": {
+     "type": "prometheus",
+     "uid": "${prom}"
+    },
+    "query": {
+     "query": "label_values(jwksbridge_keys{cluster=~\"$cluster\"}, keyset)",
+     "refId": "v"
+    },
+    "definition": "label_values(jwksbridge_keys{cluster=~\"$cluster\"}, keyset)",
+    "refresh": 2,
+    "sort": 1,
+    "current": {
+     "text": "All",
+     "value": "$__all"
+    },
+    "options": [],
+    "hide": 0,
+    "includeAll": true,
+    "allValue": ".*",
+    "multi": false
+   },
+   {
+    "name": "jaeger_ui",
+    "label": "Jaeger UI",
+    "type": "textbox",
+    "query": "http://localhost:16686",
+    "current": {
+     "text": "http://localhost:16686",
+     "value": "http://localhost:16686"
+    },
+    "hide": 0
+   }
+  ]
+ },
+ "annotations": {
+  "list": [
+   {
+    "builtIn": 1,
+    "datasource": {
+     "type": "grafana",
+     "uid": "-- Grafana --"
+    },
+    "enable": true,
+    "hide": true,
+    "iconColor": "rgba(0, 211, 255, 1)",
+    "name": "Annotations & Alerts",
+    "type": "dashboard"
+   },
+   {
+    "name": "Keyset change",
+    "enable": true,
+    "iconColor": "purple",
+    "datasource": {
+     "type": "loki",
+     "uid": "${loki}"
+    },
+    "expr": "{service_name=\"jwks-bridge\", k8s_cluster_name=~\"$cluster\"} |= \"keyset loaded\" | json",
+    "titleFormat": "keyset loaded",
+    "textFormat": "{{signing_order}}",
+    "tagKeys": "keyset"
+   }
+  ]
+ },
+ "panels": [
+  {
+   "id": 1,
+   "type": "row",
+   "title": "Signing key",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 0,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 2,
+   "type": "stat",
+   "title": "Signing kid",
+   "description": "The key Kong data planes sign with: the first key of the private keyset served by the bridge.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 1,
+    "w": 8,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "textMode": "name",
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "orientation": "horizontal"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "max by (kid) (jwksbridge_key_info{cluster=~\"$cluster\",keyset=~\"$keyset\",signing=\"true\"})",
+     "legendFormat": "{{kid}}",
+     "instant": true,
+     "range": false
+    }
+   ]
+  },
+  {
+   "id": 3,
+   "type": "stat",
+   "title": "Keys by status",
+   "description": "staged: public JWKS only. active: signs once staged long enough. retired: verify only.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 1,
+    "w": 8,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "blue",
+        "value": null
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "textMode": "value_and_name",
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "orientation": "horizontal"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "max by (status) (jwksbridge_keys{cluster=~\"$cluster\",keyset=~\"$keyset\"})",
+     "legendFormat": "{{status}}",
+     "instant": true,
+     "range": false
+    }
+   ]
+  },
+  {
+   "id": 4,
+   "type": "stat",
+   "title": "Snapshot age",
+   "description": "Seconds since the source last confirmed the keyset.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 1,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "orange",
+        "value": 120
+       },
+       {
+        "color": "red",
+        "value": 1800
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "textMode": "auto",
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "orientation": "horizontal"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "max(jwksbridge_snapshot_age_seconds{cluster=~\"$cluster\",keyset=~\"$keyset\"})",
+     "legendFormat": "__auto",
+     "instant": true,
+     "range": false
+    }
+   ]
+  },
+  {
+   "id": 5,
+   "type": "stat",
+   "title": "Source errors (15m)",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 20,
+    "y": 1,
+    "w": 4,
+    "h": 5
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "textMode": "auto",
+    "colorMode": "value",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "orientation": "horizontal"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "sum(increase(jwksbridge_source_errors_total{cluster=~\"$cluster\"}[15m])) or vector(0)",
+     "legendFormat": "__auto",
+     "instant": true,
+     "range": false
+    }
+   ]
+  },
+  {
+   "id": 6,
+   "type": "state-timeline",
+   "title": "Key lifecycle",
+   "description": "One bar per kid. Signing is the key Kong uses; active means promoted but still held back by min_stage_duration.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 6,
+    "w": 24,
+    "h": 7
+   },
+   "fieldConfig": {
+    "defaults": {
+     "custom": {
+      "fillOpacity": 80,
+      "lineWidth": 0
+     },
+     "color": {
+      "mode": "fixed",
+      "fixedColor": "transparent"
+     },
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "transparent",
+        "value": null
+       }
+      ]
+     },
+     "mappings": [
+      {
+       "type": "range",
+       "options": {
+        "from": 0.5,
+        "to": 1.5,
+        "result": {
+         "text": "staged",
+         "color": "blue",
+         "index": 0
+        }
+       }
+      },
+      {
+       "type": "range",
+       "options": {
+        "from": 1.5,
+        "to": 2.5,
+        "result": {
+         "text": "retired",
+         "color": "#808080",
+         "index": 1
+        }
+       }
+      },
+      {
+       "type": "range",
+       "options": {
+        "from": 2.5,
+        "to": 3.5,
+        "result": {
+         "text": "active (guarded)",
+         "color": "orange",
+         "index": 2
+        }
+       }
+      },
+      {
+       "type": "range",
+       "options": {
+        "from": 3.5,
+        "to": 4.5,
+        "result": {
+         "text": "signing",
+         "color": "green",
+         "index": 3
+        }
+       }
+      }
+     ]
+    },
+    "overrides": []
+   },
+   "options": {
+    "showValue": "auto",
+    "mergeValues": true,
+    "rowHeight": 0.8,
+    "alignValue": "center",
+    "legend": {
+     "showLegend": false
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "max by (kid) ((jwksbridge_key_info{cluster=~\"$cluster\",keyset=~\"$keyset\",status=\"staged\"} * 1) or (jwksbridge_key_info{cluster=~\"$cluster\",keyset=~\"$keyset\",status=\"retired\",signing=\"false\"} * 2) or (jwksbridge_key_info{cluster=~\"$cluster\",keyset=~\"$keyset\",status=\"active\",signing=\"false\"} * 3) or (jwksbridge_key_info{cluster=~\"$cluster\",keyset=~\"$keyset\",signing=\"true\"} * 4))",
+     "legendFormat": "{{kid}}"
+    }
+   ]
+  },
+  {
+   "id": 7,
+   "type": "row",
+   "title": "Kong data planes",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 13,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 8,
+   "type": "timeseries",
+   "title": "Requests per data plane",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 14,
+    "w": 10,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 15,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "sum by (pod, route) (rate(kong_http_requests_total{cluster=~\"$cluster\"}[1m]))",
+     "legendFormat": "{{pod}} {{route}}"
+    }
+   ]
+  },
+  {
+   "id": 9,
+   "type": "stat",
+   "title": "Failed requests (15m)",
+   "description": "5xx, 401 and 403 responses from the data planes. Stays at 0 through a rotation.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 10,
+    "y": 14,
+    "w": 4,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "mappings": [],
+     "thresholds": {
+      "mode": "absolute",
+      "steps": [
+       {
+        "color": "green",
+        "value": null
+       },
+       {
+        "color": "red",
+        "value": 1
+       }
+      ]
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "reduceOptions": {
+     "calcs": [
+      "lastNotNull"
+     ],
+     "fields": "",
+     "values": false
+    },
+    "textMode": "auto",
+    "colorMode": "background",
+    "graphMode": "none",
+    "justifyMode": "center",
+    "orientation": "horizontal"
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "sum(increase(kong_http_requests_total{cluster=~\"$cluster\",code=~\"5..|401|403\"}[15m])) or vector(0)",
+     "legendFormat": "__auto",
+     "instant": true,
+     "range": false
+    }
+   ]
+  },
+  {
+   "id": 10,
+   "type": "timeseries",
+   "title": "Kong latency p95",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 14,
+    "y": 14,
+    "w": 10,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "ms",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 15,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(kong_kong_latency_ms_bucket{cluster=~\"$cluster\"}[1m])))",
+     "legendFormat": "kong (incl. jwt-signer)"
+    },
+    {
+     "refId": "B",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le) (rate(kong_upstream_latency_ms_bucket{cluster=~\"$cluster\"}[1m])))",
+     "legendFormat": "upstream"
+    }
+   ]
+  },
+  {
+   "id": 11,
+   "type": "row",
+   "title": "jwks-bridge",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 22,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 12,
+   "type": "timeseries",
+   "title": "Bridge requests by endpoint",
+   "description": "keyset: Kong data planes reloading the private keyset. jwks: public JWKS reads.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 0,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "reqps",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 15,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "sum by (endpoint, code) (rate(jwksbridge_requests_total{cluster=~\"$cluster\"}[1m]))",
+     "legendFormat": "{{endpoint}} {{code}}"
+    }
+   ]
+  },
+  {
+   "id": 13,
+   "type": "timeseries",
+   "title": "Bridge latency p95",
+   "description": "",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 8,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "s",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 15,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "none"
+      }
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "histogram_quantile(0.95, sum by (le, endpoint) (rate(jwksbridge_request_duration_seconds_bucket{cluster=~\"$cluster\"}[1m])))",
+     "legendFormat": "{{endpoint}}"
+    }
+   ]
+  },
+  {
+   "id": 14,
+   "type": "timeseries",
+   "title": "Refreshes per minute",
+   "description": "updated: the keyset changed. unchanged: same version. error: source unreachable. invalid: rejected, last good snapshot kept.",
+   "datasource": {
+    "type": "prometheus",
+    "uid": "${prom}"
+   },
+   "gridPos": {
+    "x": 16,
+    "y": 23,
+    "w": 8,
+    "h": 8
+   },
+   "fieldConfig": {
+    "defaults": {
+     "unit": "short",
+     "custom": {
+      "lineWidth": 2,
+      "fillOpacity": 15,
+      "showPoints": "never",
+      "stacking": {
+       "mode": "normal"
+      }
+     }
+    },
+    "overrides": []
+   },
+   "options": {
+    "legend": {
+     "displayMode": "list",
+     "placement": "bottom"
+    },
+    "tooltip": {
+     "mode": "multi",
+     "sort": "desc"
+    }
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "prometheus",
+      "uid": "${prom}"
+     },
+     "expr": "sum by (result) (rate(jwksbridge_refresh_total{cluster=~\"$cluster\",keyset=~\"$keyset\"}[1m])) * 60",
+     "legendFormat": "{{result}}"
+    }
+   ]
+  },
+  {
+   "id": 15,
+   "type": "row",
+   "title": "Traces and logs",
+   "collapsed": false,
+   "gridPos": {
+    "x": 0,
+    "y": 31,
+    "w": 24,
+    "h": 1
+   },
+   "panels": []
+  },
+  {
+   "id": 16,
+   "type": "text",
+   "title": "Traces in Jaeger",
+   "gridPos": {
+    "x": 0,
+    "y": 32,
+    "w": 12,
+    "h": 10
+   },
+   "description": "Links to the Jaeger UI. Set the jaeger_ui variable to its address.",
+   "options": {
+    "mode": "markdown",
+    "content": "Open the traces in the Jaeger UI for the time range of this dashboard:\n\n- [Requests through Kong](${jaeger_ui}/search?service=kong-dp&start=${__from}000&end=${__to}000&limit=50): `kong-dp` spans with `jwks-bridge` as a child for the public JWKS route.\n- [jwks-bridge requests](${jaeger_ui}/search?service=jwks-bridge&operation=GET%20%2Fkeyset&start=${__from}000&end=${__to}000&limit=50): `GET /keyset` from the data planes. Kong fetches the keyset from a timer and sends no `traceparent`, so each one is its own trace.\n- [Keyset refreshes](${jaeger_ui}/search?service=jwks-bridge&operation=keyset.refresh&start=${__from}000&end=${__to}000&limit=50): `keyset.refresh` with the Vault call as a child.\n\nBridge log lines carry `trace_id`; open a log line in the panel on the right to read it.\n"
+   }
+  },
+  {
+   "id": 17,
+   "type": "logs",
+   "title": "jwks-bridge logs",
+   "datasource": {
+    "type": "loki",
+    "uid": "${loki}"
+   },
+   "gridPos": {
+    "x": 12,
+    "y": 32,
+    "w": 12,
+    "h": 10
+   },
+   "targets": [
+    {
+     "refId": "A",
+     "datasource": {
+      "type": "loki",
+      "uid": "${loki}"
+     },
+     "expr": "{service_name=\"jwks-bridge\", k8s_cluster_name=~\"$cluster\"} | json | level != \"DEBUG\""
+    }
+   ],
+   "options": {
+    "showTime": true,
+    "wrapLogMessage": true,
+    "enableLogDetails": true,
+    "sortOrder": "Descending",
+    "dedupStrategy": "none"
+   }
+  }
+ ]
+}

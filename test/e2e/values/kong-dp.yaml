@@ -14,6 +14,9 @@ env:
   # Trust the CA that signed the jwks-bridge private listener certificate.
   lua_ssl_trusted_certificate: system,/etc/secrets/kong-cluster-cert/tls.crt,/etc/secrets/jwks-bridge-ca/ca.crt
   log_level: info
+  # Spans are produced only when the opentelemetry plugin is configured (run.sh o11y).
+  tracing_instrumentations: all
+  tracing_sampling_rate: "1"
 
 enterprise:
   enabled: true

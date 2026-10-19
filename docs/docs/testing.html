@@ -143,6 +143,14 @@
 <span class="t-cmd">./test/e2e/demo.sh</span>            <span class="t-c"># Enter advances each step</span>
 <span class="t-v">DEMO_AUTO</span>=1 ./test/e2e/demo.sh  <span class="t-c"># no pauses</span></code></pre>
 
+      <h2 id="observability">Telemetry to an existing backend</h2>
+      <p><code>run.sh o11y</code> installs an OpenTelemetry Collector in the test cluster and sends traces to Jaeger, metrics to Prometheus (remote write) and pod logs to Loki 3 (OTLP). It sets the OTLP endpoint on the bridge, turns on tracing in the Kong data planes and adds the <code>opentelemetry</code> and <code>prometheus</code> plugins.</p>
+<pre><code class="language-bash"><span class="t-cmd">export</span> E2E_O11Y_JAEGER=jaeger.example.internal
+<span class="t-cmd">export</span> E2E_O11Y_PROMETHEUS=prometheus.example.internal
+<span class="t-cmd">export</span> E2E_O11Y_LOKI=loki.example.internal
+<span class="t-cmd">./test/e2e/run.sh</span> o11y</code></pre>
+      <p>Exported data carries <code>cluster</code> (metrics) and <code>k8s.cluster.name</code> (traces, logs), set from <code>E2E_O11Y_CLUSTER</code>. Bridge log lines keep their <code>trace_id</code>, so Loki and Jaeger can link to each other. Import the <a href="observability.html#dashboard">Grafana dashboard</a> to follow the demo.</p>
+
       <h2 id="ci">CI</h2>
       <p>The GitHub Actions workflow runs the same script on kind when the <code>KONG_LICENSE_DATA</code> repository secret is set.</p>
       <!-- pager --><div class="doc-pager">
