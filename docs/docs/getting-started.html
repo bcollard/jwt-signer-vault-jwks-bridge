@@ -109,41 +109,41 @@
       <p class="lead">Run the bridge locally with a file-based keyset, then deploy it next to Vault and Kong.</p>
 
       <h2 id="install">Install</h2>
-<pre><code>brew tap bcollard/jwks-bridge
-brew install --cask jwks-bridge</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">brew</span> tap bcollard/jwks-bridge
+<span class="t-cmd">brew</span> install <span class="t-f">--cask</span> jwks-bridge</code></pre>
       <p>Or use the container image <code>ghcr.io/bcollard/jwks-bridge</code>, or a binary from the <a href="https://github.com/bcollard/jwt-signer-vault-jwks-bridge/releases/latest">latest release</a>.</p>
 
       <h2 id="local">Run locally</h2>
       <p>Generate a key, write it as a keyset document, and serve it with the <code>file</code> source. The private listener runs in plain HTTP here; that mode is for local development only.</p>
-<pre><code>mkdir -p keys
-jwks-bridge keygen --alg RS256 --kid k1 --status active --doc &gt; keys/default.json
-printf 'local-password' &gt; keys/password
+<pre><code class="language-bash"><span class="t-cmd">mkdir</span> <span class="t-f">-p</span> keys
+<span class="t-cmd">jwks-bridge</span> keygen <span class="t-f">--alg</span> RS256 <span class="t-f">--kid</span> k1 <span class="t-f">--status</span> active <span class="t-f">--doc</span> <span class="t-p">&gt;</span> keys/default.json
+<span class="t-cmd">printf</span> <span class="t-s">'local-password'</span> <span class="t-p">&gt;</span> keys/password
 
-jwks-bridge serve \
-  --source file --file-dir ./keys --keysets default=default.json \
-  --private-insecure-plaintext \
-  --basic-user kong --basic-password-file ./keys/password</code></pre>
-<pre><code>curl -s localhost:8080/.well-known/jwks.json      # public JWKS
-curl -s -u kong:local-password localhost:8443/keyset  # keyset for Kong
-curl -s localhost:9090/metrics | grep jwksbridge_  # Prometheus metrics</code></pre>
+<span class="t-cmd">jwks-bridge</span> serve <span class="t-p">\</span>
+  <span class="t-f">--source</span> file <span class="t-f">--file-dir</span> ./keys <span class="t-f">--keysets</span> default=default.json <span class="t-p">\</span>
+  <span class="t-f">--private-insecure-plaintext</span> <span class="t-p">\</span>
+  <span class="t-f">--basic-user</span> kong <span class="t-f">--basic-password-file</span> ./keys/password</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">curl</span> <span class="t-f">-s</span> localhost:8080/.well-known/jwks.json      <span class="t-c"># public JWKS</span>
+<span class="t-cmd">curl</span> <span class="t-f">-s</span> <span class="t-f">-u</span> kong:local-password localhost:8443/keyset  <span class="t-c"># keyset for Kong</span>
+<span class="t-cmd">curl</span> <span class="t-f">-s</span> localhost:9090/metrics <span class="t-p">|</span> <span class="t-cmd">grep</span> jwksbridge_  <span class="t-c"># Prometheus metrics</span></code></pre>
       <p>The repository ships the same setup as <code>examples/local/run.sh</code>.</p>
 
       <h2 id="vault">Store the key in Vault</h2>
       <p>The bridge reads the <code>keys</code> field of a KV v2 secret. Write a first active key:</p>
-<pre><code>jwks-bridge keygen --alg RS256 --status active | jq -c '[.]' \
-  | vault kv put secret/jwks-bridge/default keys=-</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">jwks-bridge</span> keygen <span class="t-f">--alg</span> RS256 <span class="t-f">--status</span> active <span class="t-p">|</span> <span class="t-cmd">jq</span> <span class="t-f">-c</span> <span class="t-s">'[.]'</span> <span class="t-p">\</span>
+  <span class="t-p">|</span> <span class="t-cmd">vault</span> kv put secret/jwks-bridge/default keys=-</code></pre>
       <p><a href="vault.html">Vault setup</a> covers the policy and the Kubernetes auth role.</p>
 
       <h2 id="kubernetes">Deploy on Kubernetes</h2>
-<pre><code>kubectl create namespace jwks
-kubectl -n jwks create secret tls jwks-bridge-tls --cert=tls.crt --key=tls.key
-kubectl -n jwks create secret generic jwks-bridge-basic-auth \
-  --from-literal=username=kong --from-literal=password="$(openssl rand -hex 24)"
+<pre><code class="language-bash"><span class="t-cmd">kubectl</span> create namespace jwks
+<span class="t-cmd">kubectl</span> <span class="t-f">-n</span> jwks create secret tls jwks-bridge-tls <span class="t-f">--cert</span>=tls.crt <span class="t-f">--key</span>=tls.key
+<span class="t-cmd">kubectl</span> <span class="t-f">-n</span> jwks create secret generic jwks-bridge-basic-auth <span class="t-p">\</span>
+  <span class="t-f">--from-literal</span>=username=kong <span class="t-f">--from-literal</span>=password=<span class="t-s">"$(openssl rand -hex 24)"</span>
 
-helm install jwks-bridge oci://ghcr.io/bcollard/charts/jwks-bridge -n jwks \
-  --set vault.address=https://vault.example.internal:8200 \
-  --set private.tls.secretName=jwks-bridge-tls \
-  --set private.basicAuth.secretName=jwks-bridge-basic-auth</code></pre>
+<span class="t-cmd">helm</span> install jwks-bridge oci://ghcr.io/bcollard/charts/jwks-bridge <span class="t-f">-n</span> jwks <span class="t-p">\</span>
+  <span class="t-f">--set</span> vault.address=https://vault.example.internal:8200 <span class="t-p">\</span>
+  <span class="t-f">--set</span> private.tls.secretName=jwks-bridge-tls <span class="t-p">\</span>
+  <span class="t-f">--set</span> private.basicAuth.secretName=jwks-bridge-basic-auth</code></pre>
       <p>The TLS certificate must be trusted by the Kong data planes. See <a href="kubernetes.html">Kubernetes and Helm</a>.</p>
 
       <h2 id="kong">Configure Kong</h2>

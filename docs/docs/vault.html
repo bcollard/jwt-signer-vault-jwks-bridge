@@ -110,26 +110,26 @@
 
       <h2 id="kv">KV v2 secret</h2>
       <p>The secret holds one field, <code>keys</code>, with the JSON array of entries described in <a href="keyset-format.html">Keyset format</a>. The field may be a JSON value or a string containing JSON. The keyset path in the bridge configuration is <code>&lt;mount&gt;/&lt;path&gt;</code>, for example <code>secret/jwks-bridge/default</code>.</p>
-<pre><code>jwks-bridge keygen --alg RS256 --status active | jq -c '[.]' \
-  | vault kv put secret/jwks-bridge/default keys=-
-vault kv get -field=keys secret/jwks-bridge/default | jq</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">jwks-bridge</span> keygen <span class="t-f">--alg</span> RS256 <span class="t-f">--status</span> active <span class="t-p">|</span> <span class="t-cmd">jq</span> <span class="t-f">-c</span> <span class="t-s">'[.]'</span> <span class="t-p">\</span>
+  <span class="t-p">|</span> <span class="t-cmd">vault</span> kv put secret/jwks-bridge/default keys=-
+<span class="t-cmd">vault</span> kv get <span class="t-f">-field</span>=keys secret/jwks-bridge/default <span class="t-p">|</span> <span class="t-cmd">jq</span></code></pre>
       <p>Vault Transit cannot be used: its keys are not exportable, and the plugin needs the private key.</p>
 
       <h2 id="policy">Policy</h2>
-<pre><code>path "secret/data/jwks-bridge/*" {
-  capabilities = ["read"]
-}
-path "secret/metadata/jwks-bridge/*" {
-  capabilities = ["read"]
-}</code></pre>
+<pre><code class="language-hcl"><span class="t-cmd">path</span> <span class="t-s">"secret/data/jwks-bridge/*"</span> <span class="t-p">{</span>
+  <span class="t-k">capabilities</span> <span class="t-p">=</span> <span class="t-p">[</span><span class="t-s">"read"</span><span class="t-p">]</span>
+<span class="t-p">}</span>
+<span class="t-cmd">path</span> <span class="t-s">"secret/metadata/jwks-bridge/*"</span> <span class="t-p">{</span>
+  <span class="t-k">capabilities</span> <span class="t-p">=</span> <span class="t-p">[</span><span class="t-s">"read"</span><span class="t-p">]</span>
+<span class="t-p">}</span></code></pre>
 
       <h2 id="kubernetes-auth">Kubernetes auth</h2>
       <p>The default in clusters. The bridge logs in with its service account token and renews the Vault token; when it can no longer be renewed it logs in again.</p>
-<pre><code>vault auth enable kubernetes
-vault write auth/kubernetes/config kubernetes_host=https://kubernetes.default.svc:443
-vault write auth/kubernetes/role/jwks-bridge \
-  bound_service_account_names=jwks-bridge \
-  bound_service_account_namespaces=jwks \
+<pre><code class="language-bash"><span class="t-cmd">vault</span> auth enable kubernetes
+<span class="t-cmd">vault</span> write auth/kubernetes/config kubernetes_host=https://kubernetes.default.svc:443
+<span class="t-cmd">vault</span> write auth/kubernetes/role/jwks-bridge <span class="t-p">\</span>
+  bound_service_account_names=jwks-bridge <span class="t-p">\</span>
+  bound_service_account_namespaces=jwks <span class="t-p">\</span>
   policies=jwks-bridge ttl=1h</code></pre>
       <p>Bridge settings: <code>JWKSB_VAULT_AUTH=kubernetes</code>, <code>JWKSB_VAULT_ROLE=jwks-bridge</code>, and <code>JWKSB_VAULT_AUTH_MOUNT</code> when the method is mounted elsewhere.</p>
 

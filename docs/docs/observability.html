@@ -125,24 +125,24 @@
       <p>Go runtime and process metrics are included.</p>
 
       <h2 id="alerts">Suggested alerts</h2>
-<pre><code>- alert: JwksBridgeKeysetStale
-  expr: max by (keyset) (jwksbridge_snapshot_age_seconds) &gt; 1800
-- alert: JwksBridgeRefreshFailing
-  expr: sum by (keyset) (rate(jwksbridge_refresh_total{result=~"error|invalid"}[5m])) &gt; 0
-  for: 5m
-- alert: JwksBridgeNoActiveKey
-  expr: max by (keyset) (jwksbridge_keys{status="active"}) == 0
-- alert: JwksBridgeKeysetErrors
-  expr: sum(rate(jwksbridge_requests_total{endpoint="keyset",code!~"2..|304"}[5m])) &gt; 0</code></pre>
+<pre><code class="language-yaml"><span class="t-p">- </span><span class="t-k">alert</span><span class="t-p">:</span> JwksBridgeKeysetStale
+<span class="t-k">  expr</span><span class="t-p">:</span> max by (keyset) (jwksbridge_snapshot_age_seconds) &gt; 1800
+<span class="t-p">- </span><span class="t-k">alert</span><span class="t-p">:</span> JwksBridgeRefreshFailing
+<span class="t-k">  expr</span><span class="t-p">:</span> sum by (keyset) (rate(jwksbridge_refresh_total{result=~<span class="t-s">"error|invalid"</span>}[5m])) &gt; 0
+<span class="t-k">  for</span><span class="t-p">:</span> 5m
+<span class="t-p">- </span><span class="t-k">alert</span><span class="t-p">:</span> JwksBridgeNoActiveKey
+<span class="t-k">  expr</span><span class="t-p">:</span> max by (keyset) (jwksbridge_keys{status=<span class="t-s">"active"</span>}) == 0
+<span class="t-p">- </span><span class="t-k">alert</span><span class="t-p">:</span> JwksBridgeKeysetErrors
+<span class="t-k">  expr</span><span class="t-p">:</span> sum(rate(jwksbridge_requests_total{endpoint=<span class="t-s">"keyset"</span>,code!~<span class="t-s">"2..|304"</span>}[5m])) &gt; 0</code></pre>
 
       <h2 id="tracing">W3C trace context</h2>
       <p>Every request on the public and private listeners extracts the <code>traceparent</code> and <code>baggage</code> headers, so a span started by Kong's <code>opentelemetry</code> plugin continues in the bridge. Calls to Vault carry the trace context on, and each background refresh is a <code>keyset.refresh</code> span with the Vault request as a child.</p>
       <p>Spans are exported only when an exporter is configured with the standard OpenTelemetry variables:</p>
-<pre><code>OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector.observability:4318
-OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf     # or grpc
-OTEL_TRACES_SAMPLER=parentbased_traceidratio
-OTEL_TRACES_SAMPLER_ARG=0.1
-OTEL_SERVICE_NAME=jwks-bridge</code></pre>
+<pre><code class="language-bash"><span class="t-v">OTEL_EXPORTER_OTLP_ENDPOINT</span>=http://otel-collector.observability:4318
+<span class="t-v">OTEL_EXPORTER_OTLP_PROTOCOL</span>=http/protobuf     <span class="t-c"># or grpc</span>
+<span class="t-v">OTEL_TRACES_SAMPLER</span>=parentbased_traceidratio
+<span class="t-v">OTEL_TRACES_SAMPLER_ARG</span>=0.1
+<span class="t-v">OTEL_SERVICE_NAME</span>=jwks-bridge</code></pre>
       <p>Without them, propagation still works and nothing is exported. With <code>JWKSB_LOG_LEVEL=debug</code>, access log lines include <code>trace_id</code> and <code>span_id</code>.</p>
       <!-- pager --><div class="doc-pager">
         <a href="kubernetes.html"><span class="dir">← Previous</span><span class="ttl">Kubernetes and Helm</span></a>

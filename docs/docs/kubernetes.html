@@ -109,8 +109,8 @@
       <p class="lead">The chart is published as an OCI artifact at <code>oci://ghcr.io/bcollard/charts/jwks-bridge</code>.</p>
 
       <h2 id="install">Install</h2>
-<pre><code>helm install jwks-bridge oci://ghcr.io/bcollard/charts/jwks-bridge \
-  -n jwks --create-namespace -f values.yaml</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">helm</span> install jwks-bridge oci://ghcr.io/bcollard/charts/jwks-bridge <span class="t-p">\</span>
+  <span class="t-f">-n</span> jwks <span class="t-f">--create-namespace</span> <span class="t-f">-f</span> values.yaml</code></pre>
       <p><code>examples/kubernetes/values.yaml</code> is a production-style starting point with mTLS, NetworkPolicy, ServiceMonitor and OTLP export, and <code>examples/kubernetes/certificate.yaml</code> issues the server certificate with cert-manager.</p>
 
       <h2 id="values">Main values</h2>

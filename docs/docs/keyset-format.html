@@ -109,17 +109,17 @@
       <p class="lead">The JSON stored in the Vault <code>keys</code> field, and how the bridge turns it into the two served documents.</p>
 
       <h2 id="entry">Entry</h2>
-<pre><code>[
-  {
-    "kid": "2026-10-k2",
-    "status": "active",
-    "staged_at": "2026-10-19T08:50:00Z",
-    "promoted_at": "2026-10-19T09:00:00Z",
-    "jwk": { "kty": "RSA", "alg": "RS256", "use": "sig", "kid": "2026-10-k2",
-             "n": "…", "e": "AQAB", "d": "…", "p": "…", "q": "…",
-             "dp": "…", "dq": "…", "qi": "…" }
-  }
-]</code></pre>
+<pre><code class="language-json"><span class="t-p">[</span>
+  <span class="t-p">{</span>
+    <span class="t-k">"kid"</span><span class="t-p">:</span> <span class="t-s">"2026-10-k2"</span><span class="t-p">,</span>
+    <span class="t-k">"status"</span><span class="t-p">:</span> <span class="t-s">"active"</span><span class="t-p">,</span>
+    <span class="t-k">"staged_at"</span><span class="t-p">:</span> <span class="t-s">"2026-10-19T08:50:00Z"</span><span class="t-p">,</span>
+    <span class="t-k">"promoted_at"</span><span class="t-p">:</span> <span class="t-s">"2026-10-19T09:00:00Z"</span><span class="t-p">,</span>
+    <span class="t-k">"jwk"</span><span class="t-p">:</span> <span class="t-p">{</span> <span class="t-k">"kty"</span><span class="t-p">:</span> <span class="t-s">"RSA"</span><span class="t-p">,</span> <span class="t-k">"alg"</span><span class="t-p">:</span> <span class="t-s">"RS256"</span><span class="t-p">,</span> <span class="t-k">"use"</span><span class="t-p">:</span> <span class="t-s">"sig"</span><span class="t-p">,</span> <span class="t-k">"kid"</span><span class="t-p">:</span> <span class="t-s">"2026-10-k2"</span><span class="t-p">,</span>
+             <span class="t-k">"n"</span><span class="t-p">:</span> <span class="t-s">"…"</span><span class="t-p">,</span> <span class="t-k">"e"</span><span class="t-p">:</span> <span class="t-s">"AQAB"</span><span class="t-p">,</span> <span class="t-k">"d"</span><span class="t-p">:</span> <span class="t-s">"…"</span><span class="t-p">,</span> <span class="t-k">"p"</span><span class="t-p">:</span> <span class="t-s">"…"</span><span class="t-p">,</span> <span class="t-k">"q"</span><span class="t-p">:</span> <span class="t-s">"…"</span><span class="t-p">,</span>
+             <span class="t-k">"dp"</span><span class="t-p">:</span> <span class="t-s">"…"</span><span class="t-p">,</span> <span class="t-k">"dq"</span><span class="t-p">:</span> <span class="t-s">"…"</span><span class="t-p">,</span> <span class="t-k">"qi"</span><span class="t-p">:</span> <span class="t-s">"…"</span> <span class="t-p">}</span>
+  <span class="t-p">}</span>
+<span class="t-p">]</span></code></pre>
       <table class="docs-table">
         <thead><tr><th>Field</th><th>Description</th></tr></thead>
         <tbody>
@@ -152,7 +152,7 @@
         <li>Active keys carry private members, and the private key matches the public members (checked by signing and verifying a probe).</li>
         <li>A document that fails is rejected as a whole; the previous snapshot keeps being served.</li>
       </ul>
-<pre><code>vault kv get -field=keys secret/jwks-bridge/default | jwks-bridge validate</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">vault</span> kv get <span class="t-f">-field</span>=keys secret/jwks-bridge/default <span class="t-p">|</span> <span class="t-cmd">jwks-bridge</span> validate</code></pre>
 
       <h2 id="public">Public derivation</h2>
       <p>The public JWKS is the JWK with <code>d</code>, <code>p</code>, <code>q</code>, <code>dp</code>, <code>dq</code>, <code>qi</code>, <code>oth</code> and <code>k</code> removed. Other members, such as <code>x5c</code>, are kept.</p>

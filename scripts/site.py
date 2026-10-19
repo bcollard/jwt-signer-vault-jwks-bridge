@@ -10,6 +10,10 @@ here from one page list, between marker comments:
     <!-- pager -->...<!-- /pager -->          previous / next, in sidebar order
     <!-- footer -->...<!-- /footer -->
 
+Code blocks written as <pre><code class="language-bash|json|yaml|hcl"> are
+syntax-highlighted here, at build time, with <span class="t-*"> tokens; the
+spans are stripped and rebuilt on every run, so edit the plain text only.
+
 It also regenerates docs/docs/search-index.js (from every h1, h2[id], h3[id])
 and docs/sitemap.xml, and fails on broken links, missing anchors, duplicate
 ids, headings without ids, unbalanced tags and <pre> inside a .callout.
@@ -197,12 +201,77 @@ def sync():
         src = replace_block(src, "breadcrumb", breadcrumb(page, title), path)
         src = replace_block(src, "pager", pager(i), path)
         src = replace_block(src, "footer", footer("../"), path)
+        src = highlight(src, path)
         write_if_changed(path, src)
 
     listed = {p for p, _ in PAGES}
     for f in sorted(os.listdir(DOCS)):
         if f.endswith(".html") and f not in listed:
             problems.append(f"{DOCS}/{f}: not listed in GROUPS")
+
+
+# Syntax highlighting. Each lexer is a list of (class, regex); the first
+# alternative that matches at a position wins.
+LEXERS = {
+    "bash": [
+        ("c", r"(?:(?<=\s)|^)#.*"),
+        ("s", r"'[^'\n]*'|\"(?:\\.|[^\"\\\n])*\""),
+        ("v", r"(?<!\\\n)^[ \t]*[A-Z_][A-Z0-9_]*(?==)"),
+        ("cmd", r"(?<!\\\n)^[ \t]*[A-Za-z_./][\w./-]*|(?<=\|\s)[A-Za-z_./][\w./-]*|(?<=&&\s)[A-Za-z_./][\w./-]*|(?<=\$\()[A-Za-z_./][\w./-]*"),
+        ("v", r"\$\{[^}\n]*\}|\$[A-Za-z_]\w*"),
+        ("f", r"(?<=\s)--?[A-Za-z][\w-]*"),
+        ("p", r"\|\||&&|[|;]|\\$|>|<|\$\(|\)"),
+    ],
+    "json": [
+        ("k", r'"(?:\\.|[^"\\\n])*"(?=\s*:)'),
+        ("s", r'"(?:\\.|[^"\\\n])*"'),
+        ("n", r"-?\b\d+(?:\.\d+)?\b|\b(?:true|false|null)\b"),
+        ("p", r"[{}\[\],:]"),
+    ],
+    "yaml": [
+        ("c", r"(?:(?<=\s)|^)#.*"),
+        ("k", r"(?<=^)[ \t]*[\w./-]+(?=:(?:\s|$))|(?<=- )[\w./-]+(?=:(?:\s|$))"),
+        ("s", r"'[^'\n]*'|\"(?:\\.|[^\"\\\n])*\""),
+        ("n", r"(?<=: )(?:-?\d+(?:\.\d+)?|true|false|null)$"),
+        ("p", r"^[ \t]*- |(?<=\S):(?=\s|$)"),
+    ],
+    "hcl": [
+        ("c", r"#.*"),
+        ("cmd", r"(?<=^)\w+(?=\s+\")"),
+        ("k", r"\w+(?=\s*=)"),
+        ("s", r'"(?:\\.|[^"\\\n])*"'),
+        ("p", r"[{}\[\]=,]"),
+    ],
+}
+LEXER_RES = {
+    lang: re.compile("|".join(f"(?P<{c}_{i}>{rx})" for i, (c, rx) in enumerate(rules)), re.M)
+    for lang, rules in LEXERS.items()
+}
+CODE_RE = re.compile(r'(<pre><code class="language-([a-z]+)">)(.*?)(</code></pre>)', re.S)
+
+
+def highlight_code(lang, text):
+    out, pos = [], 0
+    for m in LEXER_RES[lang].finditer(text):
+        if m.end() == m.start():
+            continue
+        out.append(html.escape(text[pos:m.start()], quote=False))
+        cls = m.lastgroup.rsplit("_", 1)[0]
+        out.append(f'<span class="t-{cls}">{html.escape(m.group(), quote=False)}</span>')
+        pos = m.end()
+    out.append(html.escape(text[pos:], quote=False))
+    return "".join(out)
+
+
+def highlight(src, path):
+    def repl(m):
+        lang = m.group(2)
+        if lang not in LEXER_RES:
+            problems.append(f"{path}: no highlighter for language-{lang}")
+            return m.group(0)
+        text = html.unescape(re.sub(r"</?span[^>]*>", "", m.group(3)))
+        return m.group(1) + highlight_code(lang, text) + m.group(4)
+    return CODE_RE.sub(repl, src)
 
 
 def write_if_changed(path, src):
@@ -302,6 +371,9 @@ def validate():
             closed = len(re.findall(rf"</{tag}>", src))
             if opened != closed:
                 problems.append(f"{p}: <{tag}> opened {opened}, closed {closed}")
+        if p != os.path.join(SITE, "index.html"):
+            for m in re.finditer(r'<pre><code(?! class="language-)', src):
+                problems.append(f"{p}: code block without a language-* class at line {src[:m.start()].count(chr(10)) + 1}")
         for m in re.findall(r'<div class="callout[^"]*">.*?</div>', src, re.S):
             if "<pre" in m:
                 problems.append(f"{p}: <pre> inside a callout")

@@ -123,13 +123,13 @@
           <tr><td><code>--doc</code></td><td><code>false</code></td><td>Wrap the entry in <code>{"keys":[…]}</code> for the file source.</td></tr>
         </tbody>
       </table>
-<pre><code>jwks-bridge keygen --alg ES256 --kid 2026-11-k3
-jwks-bridge keygen --status active --doc &gt; default.json</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">jwks-bridge</span> keygen <span class="t-f">--alg</span> ES256 <span class="t-f">--kid</span> 2026-11-k3
+<span class="t-cmd">jwks-bridge</span> keygen <span class="t-f">--status</span> active <span class="t-f">--doc</span> <span class="t-p">&gt;</span> default.json</code></pre>
 
       <h2 id="validate">validate</h2>
       <p>Validates a document or a bare array of entries, and prints the served order.</p>
-<pre><code>jwks-bridge validate --file default.json
-vault kv get -field=keys secret/jwks-bridge/default | jwks-bridge validate</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">jwks-bridge</span> validate <span class="t-f">--file</span> default.json
+<span class="t-cmd">vault</span> kv get <span class="t-f">-field</span>=keys secret/jwks-bridge/default <span class="t-p">|</span> <span class="t-cmd">jwks-bridge</span> validate</code></pre>
       <p><code>--min-stage-duration</code> applies the staging guard (default <code>10m</code>).</p>
 
       <h2 id="version">version</h2>

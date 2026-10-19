@@ -360,6 +360,15 @@ html { scroll-behavior: smooth; scroll-padding-top: 80px; }
 .docs-prose pre .ok { color: var(--term-ok); }
 .docs-prose pre .no { color: var(--term-bad); }
 .docs-prose pre .hl { color: var(--term-hl); }
+/* syntax tokens, written by scripts/site.py; code blocks are dark in both themes */
+.docs-prose pre .t-c   { color: var(--term-dim); font-style: italic; }
+.docs-prose pre .t-s   { color: #a5e3a0; }
+.docs-prose pre .t-k   { color: var(--term-hl); }
+.docs-prose pre .t-cmd { color: #7dd3fc; font-weight: 600; }
+.docs-prose pre .t-f   { color: #f0abfc; }
+.docs-prose pre .t-v   { color: var(--term-prompt); }
+.docs-prose pre .t-n   { color: #fdba74; }
+.docs-prose pre .t-p   { color: #9aa0b8; }
 
 /* callouts: one icon + ONE <p>. The box is flex, so a <pre> inside it gets
    squeezed into a column; put code blocks after the callout instead. */

@@ -123,11 +123,11 @@
 
       <h2 id="script">Helper script</h2>
       <p><code>examples/vault/rotate.sh</code> runs each step with the Vault CLI and <code>jq</code>:</p>
-<pre><code>export KEYSET_PATH=secret/jwks-bridge/default
-./rotate.sh stage RS256      # prints the new kid
-./rotate.sh promote &lt;kid&gt;
-./rotate.sh show
-./rotate.sh remove &lt;old kid&gt;</code></pre>
+<pre><code class="language-bash"><span class="t-cmd">export</span> KEYSET_PATH=secret/jwks-bridge/default
+<span class="t-cmd">./rotate.sh</span> stage RS256      <span class="t-c"># prints the new kid</span>
+<span class="t-cmd">./rotate.sh</span> promote <span class="t-p">&lt;</span>kid<span class="t-p">&gt;</span>
+<span class="t-cmd">./rotate.sh</span> show
+<span class="t-cmd">./rotate.sh</span> remove <span class="t-p">&lt;</span>old kid<span class="t-p">&gt;</span></code></pre>
 
       <h2 id="guard">Staging guard</h2>
       <p>The bridge refuses to serve a key first until <code>min_stage_duration</code> (default 10 min) has passed since its <code>staged_at</code>. Until then it keeps the most recently promoted retired key of the same algorithm first and logs a warning. This protects against a promotion written too early. Keep <code>min_stage_duration</code> well above <code>refresh_interval</code>, so that bridge replicas that disagree for one refresh never matter.</p>

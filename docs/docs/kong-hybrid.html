@@ -109,43 +109,43 @@
       <p class="lead">One Service and Route for the public JWKS, and the <code>jwt-signer</code> plugin pointed at the bridge's private listener.</p>
 
       <h2 id="deck">decK configuration</h2>
-<pre><code>_format_version: "3.0"
-services:
-  - name: jwks-bridge-public
-    url: http://jwks-bridge.jwks.svc:8080
-    routes:
-      - name: jwks
-        paths: ["/.well-known/jwks.json"]
-        protocols: ["http", "https"]
-        strip_path: false
-        methods: ["GET"]
-    plugins:
-      - name: proxy-cache
-        config:
-          strategy: memory
-          response_code: [200]
-          content_type: ["application/jwk-set+json"]
-          cache_ttl: 300
+<pre><code class="language-yaml"><span class="t-k">_format_version</span><span class="t-p">:</span> <span class="t-s">"3.0"</span>
+<span class="t-k">services</span><span class="t-p">:</span>
+<span class="t-p">  - </span><span class="t-k">name</span><span class="t-p">:</span> jwks-bridge-public
+<span class="t-k">    url</span><span class="t-p">:</span> http://jwks-bridge.jwks.svc:8080
+<span class="t-k">    routes</span><span class="t-p">:</span>
+<span class="t-p">      - </span><span class="t-k">name</span><span class="t-p">:</span> jwks
+<span class="t-k">        paths</span><span class="t-p">:</span> [<span class="t-s">"/.well-known/jwks.json"</span>]
+<span class="t-k">        protocols</span><span class="t-p">:</span> [<span class="t-s">"http"</span>, <span class="t-s">"https"</span>]
+<span class="t-k">        strip_path</span><span class="t-p">:</span> <span class="t-n">false</span>
+<span class="t-k">        methods</span><span class="t-p">:</span> [<span class="t-s">"GET"</span>]
+<span class="t-k">    plugins</span><span class="t-p">:</span>
+<span class="t-p">      - </span><span class="t-k">name</span><span class="t-p">:</span> proxy-cache
+<span class="t-k">        config</span><span class="t-p">:</span>
+<span class="t-k">          strategy</span><span class="t-p">:</span> memory
+<span class="t-k">          response_code</span><span class="t-p">:</span> [200]
+<span class="t-k">          content_type</span><span class="t-p">:</span> [<span class="t-s">"application/jwk-set+json"</span>]
+<span class="t-k">          cache_ttl</span><span class="t-p">:</span> <span class="t-n">300</span>
 
-  - name: orders-api
-    url: http://orders.backend.svc:8080
-    routes:
-      - name: orders
-        paths: ["/orders"]
-    plugins:
-      - name: jwt-signer
-        config:
-          access_token_jwks_uri: https://idp.example.com/.well-known/jwks.json
-          access_token_issuer: https://api.example.com
-          access_token_signing: true
-          access_token_signing_algorithm: RS256
-          access_token_upstream_header: "Authorization:Bearer"
-          access_token_keyset: https://jwks-bridge.jwks.svc:8443/keyset?name=default
-          access_token_keyset_rotate_period: 300
-          access_token_endpoints_ssl_verify: true
-          access_token_keyset_client_username: "{vault://env/jwks-bridge-user}"
-          access_token_keyset_client_password: "{vault://env/jwks-bridge-pass}"
-          channel_token_optional: true</code></pre>
+<span class="t-p">  - </span><span class="t-k">name</span><span class="t-p">:</span> orders-api
+<span class="t-k">    url</span><span class="t-p">:</span> http://orders.backend.svc:8080
+<span class="t-k">    routes</span><span class="t-p">:</span>
+<span class="t-p">      - </span><span class="t-k">name</span><span class="t-p">:</span> orders
+<span class="t-k">        paths</span><span class="t-p">:</span> [<span class="t-s">"/orders"</span>]
+<span class="t-k">    plugins</span><span class="t-p">:</span>
+<span class="t-p">      - </span><span class="t-k">name</span><span class="t-p">:</span> jwt-signer
+<span class="t-k">        config</span><span class="t-p">:</span>
+<span class="t-k">          access_token_jwks_uri</span><span class="t-p">:</span> https://idp.example.com/.well-known/jwks.json
+<span class="t-k">          access_token_issuer</span><span class="t-p">:</span> https://api.example.com
+<span class="t-k">          access_token_signing</span><span class="t-p">:</span> <span class="t-n">true</span>
+<span class="t-k">          access_token_signing_algorithm</span><span class="t-p">:</span> RS256
+<span class="t-k">          access_token_upstream_header</span><span class="t-p">:</span> <span class="t-s">"Authorization:Bearer"</span>
+<span class="t-k">          access_token_keyset</span><span class="t-p">:</span> https://jwks-bridge.jwks.svc:8443/keyset?name=default
+<span class="t-k">          access_token_keyset_rotate_period</span><span class="t-p">:</span> <span class="t-n">300</span>
+<span class="t-k">          access_token_endpoints_ssl_verify</span><span class="t-p">:</span> <span class="t-n">true</span>
+<span class="t-k">          access_token_keyset_client_username</span><span class="t-p">:</span> <span class="t-s">"{vault://env/jwks-bridge-user}"</span>
+<span class="t-k">          access_token_keyset_client_password</span><span class="t-p">:</span> <span class="t-s">"{vault://env/jwks-bridge-pass}"</span>
+<span class="t-k">          channel_token_optional</span><span class="t-p">:</span> <span class="t-n">true</span></code></pre>
 
       <h2 id="fields">Plugin fields that matter</h2>
       <table class="docs-table">
@@ -162,10 +162,10 @@ services:
 
       <h2 id="trust">Trust the bridge certificate</h2>
       <p>Add the CA that signed the bridge certificate to <code>lua_ssl_trusted_certificate</code> on every data plane. With the Kong Helm chart:</p>
-<pre><code>env:
-  lua_ssl_trusted_certificate: system,/etc/secrets/jwks-bridge-ca/ca.crt
-secretVolumes:
-  - jwks-bridge-ca</code></pre>
+<pre><code class="language-yaml"><span class="t-k">env</span><span class="t-p">:</span>
+<span class="t-k">  lua_ssl_trusted_certificate</span><span class="t-p">:</span> system,/etc/secrets/jwks-bridge-ca/ca.crt
+<span class="t-k">secretVolumes</span><span class="t-p">:</span>
+<span class="t-p">  - </span>jwks-bridge-ca</code></pre>
 
       <h2 id="backends">Backends</h2>
       <p>Backends validate <code>iss</code> (the <code>access_token_issuer</code> value) and the signature against <code>https://&lt;kong-proxy&gt;/.well-known/jwks.json</code>. They must look keys up by <code>kid</code> and refresh the JWKS on a timer.</p>

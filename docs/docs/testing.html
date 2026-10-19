@@ -129,12 +129,12 @@
 
       <h2 id="run">Run it</h2>
       <p>Needs Docker, kind, kubectl, Helm, Go, jq, openssl and a Kong Enterprise license (<code>jwt-signer</code> is an Enterprise plugin).</p>
-<pre><code>export KONG_LICENSE_DATA='{"license":{...}}'
-make e2e                     # create kind cluster, deploy, test, delete
+<pre><code class="language-bash"><span class="t-cmd">export</span> KONG_LICENSE_DATA=<span class="t-s">'{"license":{...}}'</span>
+<span class="t-cmd">make</span> e2e                     <span class="t-c"># create kind cluster, deploy, test, delete</span>
 
-./test/e2e/run.sh up         # or step by step
-./test/e2e/run.sh test
-./test/e2e/run.sh down</code></pre>
+<span class="t-cmd">./test/e2e/run.sh</span> up         <span class="t-c"># or step by step</span>
+<span class="t-cmd">./test/e2e/run.sh</span> test
+<span class="t-cmd">./test/e2e/run.sh</span> down</code></pre>
       <p>To use an existing cluster set <code>E2E_KUBE_CONTEXT</code>, and <code>E2E_LOAD_IMAGE</code> to the command that loads <code>jwks-bridge:e2e</code> into it.</p>
 
       <h2 id="ci">CI</h2>
