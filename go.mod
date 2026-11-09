@@ -3,7 +3,7 @@ module github.com/bcollard/jwt-signer-vault-jwks-bridge
 go 1.26.0
 
 require (
-	github.com/go-jose/go-jose/v4 v4.1.6
+	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/hashicorp/vault/api v1.23.0
 	github.com/prometheus/client_golang v1.25.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.72.0
